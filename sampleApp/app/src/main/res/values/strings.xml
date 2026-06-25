@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Axeptio SDK Sample app</string>
+
+    <!-- MainActivity -->
+    <string name="sample_title">Axeptio SDK Sample</string>
+    <string name="btn_show_consent_flow">Show flow starting with Consents</string>
+    <string name="btn_open_consent_manager">Open Consent Manager</string>
+    <string name="btn_open_permissions_screen">Open Permissions Screen</string>
+    <string name="btn_sdk_configuration">SDK Configuration</string>
+    <string name="btn_sdk_clear_consents">Clear local consents</string>
+
+    <!-- ConfigScreen -->
+    <string name="config_title">SDK Configuration</string>
+    <string name="config_label_project_id">Project ID *</string>
+    <string name="config_label_app_version">App Version *</string>
+    <string name="config_label_config_id">Configuration ID</string>
+    <string name="config_label_target_service">Target Service</string>
+    <string name="config_label_token">Bearer Token</string>
+    <string name="config_label_theme_mode">Theme Mode</string>
+    <string name="config_label_environment">Environment</string>
+    <string name="config_btn_save">Save &amp; Initialize SDK</string>
+
+    <!-- Permissions -->
+    <string name="permission_location_title">Precise location permission</string>
+    <string name="permission_location_description">We use your location to find nearby stores.</string>
+    <string name="permission_microphone_title">Microphone</string>
+    <string name="permission_microphone_description">We need microphone access.</string>
+    <string name="permission_notifications_title">Notifications</string>
+    <string name="permission_notifications_description">We want to send you alerts.</string>
+</resources>

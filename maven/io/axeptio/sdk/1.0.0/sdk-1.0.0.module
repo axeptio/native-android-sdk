@@ -1,0 +1,202 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.axeptio",
+    "module": "sdk",
+    "version": "1.0.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.4.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-config",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "sdk-1.0.0.aar",
+          "url": "sdk-1.0.0.aar",
+          "size": 42072,
+          "sha512": "46b5490abb40f81477ebcfaa987c5704d474c49e9274203829d31091e9a1c0782bf1f477ced9d46ceda3e7c3859213617eb508c4cbf482b0b05d0035dde8cc82",
+          "sha256": "fc251b58ba1d5473f66aeb252053fa6ac34699aaf9a9eb61995d280d629c508a",
+          "sha1": "4144aae602f369cb1e1d78b7e90f6127dc89bf88",
+          "md5": "d2bada863d0ac3042d7da7881d8d7d51"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.10.2"
+          }
+        },
+        {
+          "group": "co.touchlab",
+          "module": "kermit",
+          "version": {
+            "requires": "2.1.0"
+          }
+        },
+        {
+          "group": "io.insert-koin",
+          "module": "koin-core",
+          "version": {
+            "requires": "4.2.1"
+          }
+        },
+        {
+          "group": "androidx.activity",
+          "module": "activity-ktx",
+          "version": {
+            "requires": "1.13.0"
+          }
+        },
+        {
+          "group": "io.coil-kt.coil3",
+          "module": "coil-network-ktor3",
+          "version": {
+            "requires": "3.4.0"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-okhttp",
+          "version": {
+            "requires": "3.4.2"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-di",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-datastore",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-network",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-utils",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-data-configuration",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-data-permissions",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-feature-host",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-feature-permissions",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-feature-consents",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-config",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "sdk-1.0.0.aar",
+          "url": "sdk-1.0.0.aar",
+          "size": 42072,
+          "sha512": "46b5490abb40f81477ebcfaa987c5704d474c49e9274203829d31091e9a1c0782bf1f477ced9d46ceda3e7c3859213617eb508c4cbf482b0b05d0035dde8cc82",
+          "sha256": "fc251b58ba1d5473f66aeb252053fa6ac34699aaf9a9eb61995d280d629c508a",
+          "sha1": "4144aae602f369cb1e1d78b7e90f6127dc89bf88",
+          "md5": "d2bada863d0ac3042d7da7881d8d7d51"
+        }
+      ]
+    }
+  ]
+}

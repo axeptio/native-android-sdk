@@ -1,0 +1,132 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.axeptio",
+    "module": "foundation-core-datastore",
+    "version": "1.0.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.4.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "foundation-core-datastore-1.0.0.aar",
+          "url": "foundation-core-datastore-1.0.0.aar",
+          "size": 25190,
+          "sha512": "f5fb5e1439d6ef535846fee998869ad3c53a47c77e0cb8233ad105dbf5450637dc1e84d2f43626d19ff2a2ead03fe7ec037df031eafe2960c770fb6aa023cf1a",
+          "sha256": "71a1603699bc4d904cb0350faf579a0b9e7561676784e89e38b17c64dd6ff033",
+          "sha1": "9e3d5ea8c5892d8b3a9d688bad7cf60d4b5ae22b",
+          "md5": "381cb10ed76fc482fbb787f5d32c735b"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.10.2"
+          }
+        },
+        {
+          "group": "co.touchlab",
+          "module": "kermit",
+          "version": {
+            "requires": "2.1.0"
+          }
+        },
+        {
+          "group": "io.insert-koin",
+          "module": "koin-core",
+          "version": {
+            "requires": "4.2.1"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-config",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "androidx.datastore",
+          "module": "datastore-preferences",
+          "version": {
+            "requires": "1.2.1"
+          }
+        },
+        {
+          "group": "androidx.datastore",
+          "module": "datastore-core",
+          "version": {
+            "requires": "1.2.1"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.11.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "foundation-core-datastore-1.0.0.aar",
+          "url": "foundation-core-datastore-1.0.0.aar",
+          "size": 25190,
+          "sha512": "f5fb5e1439d6ef535846fee998869ad3c53a47c77e0cb8233ad105dbf5450637dc1e84d2f43626d19ff2a2ead03fe7ec037df031eafe2960c770fb6aa023cf1a",
+          "sha256": "71a1603699bc4d904cb0350faf579a0b9e7561676784e89e38b17c64dd6ff033",
+          "sha1": "9e3d5ea8c5892d8b3a9d688bad7cf60d4b5ae22b",
+          "md5": "381cb10ed76fc482fbb787f5d32c735b"
+        }
+      ]
+    }
+  ]
+}
