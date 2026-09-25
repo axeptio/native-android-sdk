@@ -1,0 +1,104 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.axeptio",
+    "module": "foundation-core-di",
+    "version": "1.0.1",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.4.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "foundation-core-di-1.0.1.aar",
+          "url": "foundation-core-di-1.0.1.aar",
+          "size": 3993,
+          "sha512": "446a0ea3e31f27233aad90e89b7fcfa159c9a70b99e0f36e6dfb438cdc7cfbd949d0d5dd34718924b5c84f76f6435efb76ef35a8abf0797fbfaa6b909a304a3b",
+          "sha256": "95818fb476b207aec14a4654c14c38fccb3290a69518446bc98c3746c2a78a9e",
+          "sha1": "86c6312e202c3813928e4f2e70e8b9ad3a205e54",
+          "md5": "1d4a4a935058574b40255351a0570b25"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.10.2"
+          }
+        },
+        {
+          "group": "co.touchlab",
+          "module": "kermit",
+          "version": {
+            "requires": "2.1.0"
+          }
+        },
+        {
+          "group": "io.insert-koin",
+          "module": "koin-core",
+          "version": {
+            "requires": "4.2.1"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "foundation-core-di-1.0.1.aar",
+          "url": "foundation-core-di-1.0.1.aar",
+          "size": 3993,
+          "sha512": "446a0ea3e31f27233aad90e89b7fcfa159c9a70b99e0f36e6dfb438cdc7cfbd949d0d5dd34718924b5c84f76f6435efb76ef35a8abf0797fbfaa6b909a304a3b",
+          "sha256": "95818fb476b207aec14a4654c14c38fccb3290a69518446bc98c3746c2a78a9e",
+          "sha1": "86c6312e202c3813928e4f2e70e8b9ad3a205e54",
+          "md5": "1d4a4a935058574b40255351a0570b25"
+        }
+      ]
+    }
+  ]
+}

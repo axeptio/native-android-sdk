@@ -3,11 +3,12 @@
   <groupId>io.axeptio</groupId>
   <artifactId>foundation-data-analytics</artifactId>
   <versioning>
-    <latest>1.1.0-beta.1</latest>
-    <release>1.1.0-beta.1</release>
+    <latest>1.0.1</latest>
+    <release>1.0.1</release>
     <versions>
       <version>1.1.0-beta.1</version>
+      <version>1.0.1</version>
     </versions>
-    <lastUpdated>20260923171650</lastUpdated>
+    <lastUpdated>20260925092226</lastUpdated>
   </versioning>
 </metadata>

@@ -23,7 +23,6 @@ import io.axeptio.sample.config.AxeptioConfigManager
 import io.axeptio.sample.ui.EnumDropdown
 import io.axeptio.sdk.configuration.AxeptioEnvironment
 import io.axeptio.sdk.configuration.AxeptioService
-import io.axeptio.sdk.configuration.AxeptioThemeMode
 
 @Composable
 fun ConfigScreen(
@@ -51,13 +50,6 @@ fun ConfigScreen(
             onOptionSelected = { selected ->
                 formState = formState.copy(targetService = selected)
             }
-        )
-
-        EnumDropdown(
-            label = stringResource(R.string.config_label_theme_mode),
-            selectedOption = formState.themeMode,
-            options = AxeptioThemeMode.entries,
-            onOptionSelected = { formState = formState.copy(themeMode = it) },
         )
 
         OutlinedTextField(
@@ -118,7 +110,6 @@ private fun ConfigScreenPreview() {
             projectId = AxeptioConfigManager.DEFAULT_PROJECT_ID,
             appVersion = AxeptioConfigManager.DEFAULT_APP_VERSION,
             targetService = AxeptioService.Brands,
-            forceThemeMode = AxeptioThemeMode.Light,
             environment = AxeptioEnvironment.Staging,
         )
     )

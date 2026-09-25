@@ -5,6 +5,7 @@ import android.util.Log
 import io.axeptio.foundation.core.config.AxeptioPermission
 import io.axeptio.sample.R
 import io.axeptio.sdk.AxeptioSDK
+import io.axeptio.sdk.model.AxeptioLogLevel
 
 object SDKConfigurer {
 
@@ -40,8 +41,8 @@ object SDKConfigurer {
                 token = config.token
                 configId = config.configId
                 targetService = config.targetService
-                forceThemeMode = config.forceThemeMode
                 environment = config.environment
+                loggerLevel = AxeptioLogLevel.DEBUG
                 withPermissions(applicationContext.getSupportedPermissions())
             }
         )

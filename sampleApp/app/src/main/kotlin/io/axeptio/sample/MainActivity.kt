@@ -1,12 +1,11 @@
 package io.axeptio.sample
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -35,19 +35,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import io.axeptio.sample.config.ConfigRepository
+import io.axeptio.sample.theme.SampleAppTheme
 import io.axeptio.sdk.AxeptioSDK
 import io.axeptio.sdk.model.ConsentStatus
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         val repository = ConfigRepository.create(this)
 
         setContent {
-            MaterialTheme {
+            SampleAppTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     MainContent(
                         activity = this@MainActivity,
@@ -76,66 +76,34 @@ private fun MainContent(
                 Log.d("SDKConfigurer", "Consent status updated: $status")
 
                 when (status) {
-                    ConsentStatus.FIRST_TIME -> {
-                        activity.showToast(
-                            "User has not given consent yet. Show the consent flow to " +
-                                "collect their preferences."
-                        )
-
-                        AxeptioSDK.showConsentFlow(activity)
+                    is ConsentStatus.Ready -> {
+                        if (status.shouldDisplayConsents) {
+                            Log.d(
+                                "SDKConfigurer",
+                                "User consent is required. Show the consent flow to " +
+                                    "collect or update their preferences."
+                            )
+                            AxeptioSDK.showConsentFlow(activity)
+                        } else {
+                            Log.d(
+                                "SDKConfigurer",
+                                "User's consent is valid and up to date. No action needed."
+                            )
+                        }
                     }
 
-                    ConsentStatus.VENDORS_CHANGED -> {
-                        activity.showToast(
-                            "One or more vendors have changed since the user last gave consent. " +
-                                "Please review and update your consent preferences."
-                        )
-
-                        AxeptioSDK.showConsentManager(activity)
-                    }
-
-                    ConsentStatus.CONSENT_EXPIRED -> {
-                        activity.showToast(
-                            "User's consent has expired. Please review and update your consent preferences."
-                        )
-
-                        AxeptioSDK.showConsentManager(activity)
-                    }
-
-                    ConsentStatus.SYNC_FAILED_GIVEUP -> {
-                        Log.e(
-                            "SDKConfigurer",
-                            "Failed to sync consent status with server after multiple attempts. " +
-                                "User's consent status may be outdated."
-                        )
-                    }
-
-                    ConsentStatus.CONSENTS_SYNC_SUCCESSFUL -> {
-                        Log.d(
-                            "SDKConfigurer",
-                            "Consents synchronized successfully with Axeptio servers."
-                        )
-                    }
-
-                    ConsentStatus.VALID_CONSENT -> {
-                        Log.d(
-                            "SDKConfigurer",
-                            "User's consent is valid and up to date. No action needed."
-                        )
-                    }
-
-                    ConsentStatus.NOT_INITIALIZED -> {
+                    is ConsentStatus.NotInitialized -> {
                         Log.d(
                             "SDKConfigurer",
                             "SDK not initialized yet; waiting for initialization to complete"
                         )
                     }
 
-                    ConsentStatus.CONFIG_FETCH_FAILED -> {
-                        Log.e(
+                    is ConsentStatus.ConfigFetchFailed -> {
+                        Log.d(
                             "SDKConfigurer",
                             "Failed to fetch configuration from server. " +
-                                "User may not be prompted for consent until this is resolved."
+                                "The SDK will retry automatically on the next initialization."
                         )
                     }
                 }
@@ -154,19 +122,9 @@ private fun MainContent(
         },
         onShowConfig = { showConfigSheet = true },
         onClearConsentData = {
-            AxeptioSDK.clearConsentData { result ->
-                activity.lifecycleScope.launch {
-                    try {
-                        val success = result.getOrThrow()
-                        if (success) {
-                            activity.showToast("Consent data cleared successfully")
-                        } else {
-                            activity.showToast("Failed to clear consent data")
-                        }
-                    } catch (e: Exception) {
-                        activity.showToast("Error clearing consent data: ${e.message}")
-                    }
-                }
+            activity.lifecycleScope.launch {
+                val cleared = AxeptioSDK.clearConsentData()
+                Log.d("AxeptioSDK", "Consent data cleared: $cleared")
             }
         }
     )
@@ -203,12 +161,6 @@ private fun restartApp(activity: ComponentActivity) {
     }
 }
 
-private suspend fun Context.showToast(message: String, duration: Int = Toast.LENGTH_LONG) {
-    withContext(Dispatchers.Main.immediate) {
-        Toast.makeText(this@showToast, message, duration).show()
-    }
-}
-
 @Composable
 private fun SampleScreen(
     onShowConsentFlow: () -> Unit,
@@ -220,6 +172,7 @@ private fun SampleScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .safeDrawingPadding()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,

@@ -17,7 +17,6 @@
     <string name="config_label_config_id">Configuration ID</string>
     <string name="config_label_target_service">Target Service</string>
     <string name="config_label_token">Bearer Token</string>
-    <string name="config_label_theme_mode">Theme Mode</string>
     <string name="config_label_environment">Environment</string>
     <string name="config_btn_save">Save &amp; Initialize SDK</string>
 

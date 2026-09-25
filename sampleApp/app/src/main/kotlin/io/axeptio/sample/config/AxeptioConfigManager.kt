@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import io.axeptio.sdk.configuration.AxeptioEnvironment
 import io.axeptio.sdk.configuration.AxeptioService
-import io.axeptio.sdk.configuration.AxeptioThemeMode
 
 class AxeptioConfigManager(context: Context) {
     private val prefs: SharedPreferences =
@@ -19,7 +18,6 @@ class AxeptioConfigManager(context: Context) {
         private const val KEY_APP_VERSION = "appVersion"
         private const val KEY_TARGET_SERVICE = "targetService"
         private const val KEY_TOKEN = "token"
-        private const val KEY_FORCE_THEME_MODE = "forceThemeMode"
         private const val KEY_ENVIRONMENT = "environment"
         private const val KEY_CONFIG_ID = "configId"
 
@@ -37,7 +35,6 @@ class AxeptioConfigManager(context: Context) {
             it.putString(KEY_APP_VERSION, config.appVersion)
             it.putString(KEY_TARGET_SERVICE, config.targetService.name)
             it.putString(KEY_TOKEN, config.token)
-            it.putString(KEY_FORCE_THEME_MODE, config.forceThemeMode?.name)
             it.putString(KEY_ENVIRONMENT, config.environment.name)
             it.putString(KEY_CONFIG_ID, config.configId)
             it.commit()
@@ -49,13 +46,11 @@ class AxeptioConfigManager(context: Context) {
         val appVersion = prefs.getString(KEY_APP_VERSION, null) ?: return null
         val targetServiceName = prefs.getString(KEY_TARGET_SERVICE, null)
         val token = prefs.getString(KEY_TOKEN, null)
-        val themeName = prefs.getString(KEY_FORCE_THEME_MODE, null)
         val environmentName = prefs.getString(KEY_ENVIRONMENT, null)
         val configId = prefs.getString(KEY_CONFIG_ID, null)
 
         val targetService =
             enumValueOrNull<AxeptioService>(targetServiceName) ?: DEFAULT_TARGET_SERVICE_ENUM
-        val forceThemeMode = enumValueOrNull<AxeptioThemeMode>(themeName)
         val environment =
             enumValueOrNull<AxeptioEnvironment>(environmentName) ?: AxeptioEnvironment.Production
 
@@ -64,7 +59,6 @@ class AxeptioConfigManager(context: Context) {
             appVersion = appVersion,
             targetService = targetService,
             token = token,
-            forceThemeMode = forceThemeMode,
             environment = environment,
             configId = configId,
         )
