@@ -385,3 +385,12 @@ exactly as your own app would.
 
 The sample app lets you configure project credentials at runtime and demonstrates all consent flows,
 the permissions screen, and consent status handling.
+
+## Support
+
+For integration questions, bug reports or feature requests, contact Axeptio support at
+**support@axeptio.eu**. To report a security vulnerability, see [SECURITY.md](SECURITY.md).
+
+## License
+
+The Axeptio Android SDK is distributed under Axeptio's licensing terms — see [LICENSE](LICENSE).
