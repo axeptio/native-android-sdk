@@ -1,0 +1,261 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.axeptio",
+    "module": "foundation-feature-host",
+    "version": "1.1.0-beta.3",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.4.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "foundation-feature-host-1.1.0-beta.3.aar",
+          "url": "foundation-feature-host-1.1.0-beta.3.aar",
+          "size": 58483,
+          "sha512": "d4ebf5385079c160a99af4c02eea3e036d60e405b2b45ec3c5b2c9c3ebad4ed1c01c3f012568307e33aa7011bd667d237cb8d2013063d9daa80fb56ccc7ff4c4",
+          "sha256": "2be4759e4b2357d895a78d361e61645af9f7a9bda969aeaddfead87fb0f72136",
+          "sha1": "2291d9fc1b3db255c69361a902ead6da42f7a8bb",
+          "md5": "9f0658390773f669f11b542d3f194051"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.10.2"
+          }
+        },
+        {
+          "group": "co.touchlab",
+          "module": "kermit",
+          "version": {
+            "requires": "2.1.0"
+          }
+        },
+        {
+          "group": "androidx.compose",
+          "module": "compose-bom",
+          "version": {
+            "requires": "2026.03.01"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          }
+        },
+        {
+          "group": "androidx.compose.ui",
+          "module": "ui"
+        },
+        {
+          "group": "androidx.compose.ui",
+          "module": "ui-tooling-preview"
+        },
+        {
+          "group": "androidx.compose.material3",
+          "module": "material3"
+        },
+        {
+          "group": "androidx.compose.material3.adaptive",
+          "module": "adaptive"
+        },
+        {
+          "group": "androidx.compose.material",
+          "module": "material-icons-extended"
+        },
+        {
+          "group": "androidx.compose.foundation",
+          "module": "foundation"
+        },
+        {
+          "group": "androidx.compose.ui",
+          "module": "ui-text-google-fonts"
+        },
+        {
+          "group": "io.coil-kt.coil3",
+          "module": "coil-compose",
+          "version": {
+            "requires": "3.4.0"
+          }
+        },
+        {
+          "group": "androidx.activity",
+          "module": "activity-compose",
+          "version": {
+            "requires": "1.13.0"
+          }
+        },
+        {
+          "group": "androidx.lifecycle",
+          "module": "lifecycle-viewmodel-ktx",
+          "version": {
+            "requires": "2.10.0"
+          }
+        },
+        {
+          "group": "androidx.lifecycle",
+          "module": "lifecycle-viewmodel-compose",
+          "version": {
+            "requires": "2.10.0"
+          }
+        },
+        {
+          "group": "androidx.navigation",
+          "module": "navigation-compose",
+          "version": {
+            "requires": "2.9.8"
+          }
+        },
+        {
+          "group": "androidx.navigation3",
+          "module": "navigation3-runtime",
+          "version": {
+            "requires": "1.1.1"
+          }
+        },
+        {
+          "group": "androidx.navigation3",
+          "module": "navigation3-ui",
+          "version": {
+            "requires": "1.1.1"
+          }
+        },
+        {
+          "group": "androidx.lifecycle",
+          "module": "lifecycle-viewmodel-navigation3",
+          "version": {
+            "requires": "2.10.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-core",
+          "version": {
+            "requires": "1.11.0"
+          }
+        },
+        {
+          "group": "androidx.browser",
+          "module": "browser",
+          "version": {
+            "requires": "1.9.0"
+          }
+        },
+        {
+          "group": "io.insert-koin",
+          "module": "koin-core",
+          "version": {
+            "requires": "4.2.1"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-di",
+          "version": {
+            "requires": "1.1.0-beta.3"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-design-system",
+          "version": {
+            "requires": "1.1.0-beta.3"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-config",
+          "version": {
+            "requires": "1.1.0-beta.3"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-data-configuration",
+          "version": {
+            "requires": "1.1.0-beta.3"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-feature-permissions",
+          "version": {
+            "requires": "1.1.0-beta.3"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-feature-consents",
+          "version": {
+            "requires": "1.1.0-beta.3"
+          }
+        },
+        {
+          "group": "androidx.lifecycle",
+          "module": "lifecycle-runtime-ktx",
+          "version": {
+            "requires": "2.10.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "foundation-feature-host-1.1.0-beta.3.aar",
+          "url": "foundation-feature-host-1.1.0-beta.3.aar",
+          "size": 58483,
+          "sha512": "d4ebf5385079c160a99af4c02eea3e036d60e405b2b45ec3c5b2c9c3ebad4ed1c01c3f012568307e33aa7011bd667d237cb8d2013063d9daa80fb56ccc7ff4c4",
+          "sha256": "2be4759e4b2357d895a78d361e61645af9f7a9bda969aeaddfead87fb0f72136",
+          "sha1": "2291d9fc1b3db255c69361a902ead6da42f7a8bb",
+          "md5": "9f0658390773f669f11b542d3f194051"
+        }
+      ]
+    }
+  ]
+}
