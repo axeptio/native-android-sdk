@@ -2,6 +2,7 @@ package io.axeptio.sample.config
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import io.axeptio.sdk.configuration.AxeptioEnvironment
 import io.axeptio.sdk.configuration.AxeptioService
 
@@ -10,6 +11,11 @@ class AxeptioConfigManager(context: Context) {
         context.getSharedPreferences("axeptio_config", Context.MODE_PRIVATE)
 
     companion object {
+        /**
+         * Credentials of a public Axeptio demo project (Brands flow), so the sample runs out of
+         * the box. Replace them with your own project's values from the Axeptio back-office, or
+         * change them at runtime from the in-app SDK Configuration screen.
+         */
         const val DEFAULT_PROJECT_ID = "69dfafa35cda9feae7d2947a"
         const val DEFAULT_TOKEN = "project_69dfafa35cda9feae7d2947a_pro_3afbe616928ee6e4462aed560c5f2098"
         const val DEFAULT_APP_VERSION = "1.2.3"
@@ -30,14 +36,13 @@ class AxeptioConfigManager(context: Context) {
     }
 
     fun saveConfig(config: AppConfig) {
-        prefs.edit().also {
-            it.putString(KEY_PROJECT_ID, config.projectId)
-            it.putString(KEY_APP_VERSION, config.appVersion)
-            it.putString(KEY_TARGET_SERVICE, config.targetService.name)
-            it.putString(KEY_TOKEN, config.token)
-            it.putString(KEY_ENVIRONMENT, config.environment.name)
-            it.putString(KEY_CONFIG_ID, config.configId)
-            it.commit()
+        prefs.edit {
+            putString(KEY_PROJECT_ID, config.projectId)
+            putString(KEY_APP_VERSION, config.appVersion)
+            putString(KEY_TARGET_SERVICE, config.targetService.name)
+            putString(KEY_TOKEN, config.token)
+            putString(KEY_ENVIRONMENT, config.environment.name)
+            putString(KEY_CONFIG_ID, config.configId)
         }
     }
 
@@ -71,6 +76,4 @@ class AxeptioConfigManager(context: Context) {
         targetService = DEFAULT_TARGET_SERVICE_ENUM,
         environment = AxeptioEnvironment.Production,
     )
-
-    fun hasConfig(): Boolean = prefs.getString(KEY_PROJECT_ID, null) != null
 }

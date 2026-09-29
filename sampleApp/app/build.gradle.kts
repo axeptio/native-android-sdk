@@ -5,7 +5,7 @@ plugins {
 
 // Version of the published Axeptio SDK to depend on. Overridable with
 // `-PaxeptioVersion=…`; the publish workflow pins it to each release.
-val axeptioVersion = providers.gradleProperty("axeptioVersion").getOrElse("1.0.0")
+val axeptioVersion = providers.gradleProperty("axeptioVersion").getOrElse("1.1.0")
 
 android {
     namespace = "io.axeptio.sample"
@@ -21,6 +21,15 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            // Debug signing so the release build still installs on a plain emulator/device.
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
 
     compileOptions {
@@ -41,6 +50,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.core:core-ktx:1.18.0")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")

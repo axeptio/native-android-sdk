@@ -13,8 +13,6 @@ class ConfigRepository(private val configManager: AxeptioConfigManager) {
 
     fun getDefault(): AppConfig = configManager.getDefaultConfig()
 
-    fun hasConfig(): Boolean = configManager.hasConfig()
-
     companion object {
         fun create(context: Context) = ConfigRepository(AxeptioConfigManager(context))
     }

@@ -37,7 +37,7 @@ fun <T : Enum<T>> EnumDropdown(
             onValueChange = {},
             label = { Text(label) },
             modifier = Modifier
-                .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryEditable)
+                .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                 .fillMaxWidth(),
             readOnly = true,
             enabled = enabled,

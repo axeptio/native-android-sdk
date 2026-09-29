@@ -1,4 +1,8 @@
-# Axeptio Android SDK
+<img alt="Axeptio Native Android SDK" src="https://github.com/user-attachments/assets/c4c2d3a6-52a1-4515-b27f-4041af19fcf6" width="600" height="300"/>
+
+# Axeptio Native Android SDK
+
+[![Latest release](https://img.shields.io/github/v/release/axeptio/native-android-sdk)](https://github.com/axeptio/native-android-sdk/releases) [![License](https://img.shields.io/badge/license-Axeptio-blue.svg)](LICENSE) [![Kotlin](https://img.shields.io/badge/Kotlin-2.2%2B-blue)](https://kotlinlang.org) [![Android API](https://img.shields.io/badge/Android%20API-%3E%3D%2033-blue)](https://developer.android.com/about/versions/13)
 
 The Axeptio SDK for Android — collect, manage and surface user consents natively in your app.
 
@@ -20,9 +24,30 @@ The Axeptio SDK for Android — collect, manage and surface user consents native
 ## Requirements
 
 * Android 13 (API 33) or later (`minSdk 33`)
-* `compileSdk 36` or later
+* `compileSdk 36` or later, with an Android Gradle Plugin version that supports it
 * JDK 21 (the SDK is compiled to Java 21 bytecode)
-* Kotlin 2.x
+* Kotlin 2.2 or later (the SDK is built with Kotlin 2.3; older compilers cannot read its metadata)
+
+The SDK declares the `android.permission.INTERNET` permission itself; Gradle merges it into your
+app's manifest automatically, so you don't need to add it.
+
+The public API is designed for **Kotlin**. Calling it from Java is not supported (it relies on
+`suspend` functions, `Flow`, `kotlin.Result` and a lambda-with-receiver builder).
+
+### Before you start
+
+You need an Axeptio project set up for mobile in the
+[Axeptio back-office](https://admin.axeptio.eu). The SDK is initialized with:
+
+| Parameter       | Required | What it is                                                                                                                                                     |
+|-----------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `projectId`     | Yes      | Your Axeptio project identifier, from the back-office.                                                                                                         |
+| `appVersion`    | Yes      | Sent with every configuration request as the `version` parameter. Use your app's version name.                                                                |
+| `token`         | No       | Your project's API token, from the back-office. When set, it is sent as a `Bearer` authorization header on every request.                                     |
+| `targetService` | No       | `AxeptioService.Brands` (default) or `AxeptioService.Publisher` (IAB TCF). Must match the configurations defined in your project.                             |
+| `configId`      | No       | Pins one configuration of the project — see [Configuration ID](#configuration-id-optional).                                                                    |
+
+If you are unsure which values to use, contact [Axeptio support](#support).
 
 ## Quick Start
 
@@ -66,7 +91,7 @@ Then add the dependency to your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("io.axeptio:sdk:<version>")
+    implementation("io.axeptio:sdk:1.1.0")
 }
 ```
 
@@ -74,21 +99,55 @@ Or using Gradle Groovy DSL in `build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'io.axeptio:sdk:<version>'
+    implementation 'io.axeptio:sdk:1.1.0'
 }
 ```
 
-That single coordinate transitively pulls in the SDK's internal modules and its runtime
-dependencies (Ktor, Koin, Coil, AndroidX, Kotlin coroutines). You do not declare anything else.
+Check the [releases page](https://github.com/axeptio/native-android-sdk/releases) for the latest
+version and the release notes of each. Pre-releases (for example
+`X.Y.Z-beta.N`) are published to the same repository and are opt-in: pin them explicitly to try
+upcoming features. A new release can take a few minutes to become resolvable, because
+`raw.githubusercontent.com` caches files.
 
-Replace `<version>` with the latest release from
-the [releases page](https://github.com/axeptio/native-android-sdk/releases).
+To keep Gradle from querying the Axeptio repository for every other dependency, you can restrict it
+to the `io.axeptio` group:
+
+```kotlin
+maven {
+    url = uri("https://raw.githubusercontent.com/axeptio/native-android-sdk/master/maven")
+    content { includeGroup("io.axeptio") }
+}
+```
+
+#### Transitive dependencies
+
+That single coordinate transitively pulls in the SDK's internal modules and its runtime
+dependencies. You do not declare anything else, but Gradle resolves each of them to the highest
+version requested in your build, so check for conflicts if your app uses the same libraries:
+
+| Library               | Version used by the SDK |
+|-----------------------|-------------------------|
+| Ktor client (OkHttp)  | 3.4                     |
+| Koin                  | 4.2                     |
+| Coil                  | 3.4                     |
+| Kotlin coroutines     | 1.10                    |
+| kotlinx.serialization | 1.11                    |
+| AndroidX / Compose    | Compose BOM 2026.03     |
+
+The SDK runs its own isolated Koin instance, so it never touches your app's global Koin
+container.
+
+#### R8 / ProGuard
+
+The SDK ships its own R8/ProGuard consumer rules inside the AAR. If your release build enables
+minification, no extra configuration is needed — Gradle applies the SDK's rules automatically.
 
 ### Usage
 
-Initialize the SDK once before using any other method — for example in your`Application.onCreate()`:
+Initialize the SDK once before using any other method — for example in your `Application.onCreate()`:
 
 ```kotlin
+import android.app.Application
 import io.axeptio.sdk.AxeptioSDK
 import io.axeptio.sdk.configuration.AxeptioService
 
@@ -97,7 +156,7 @@ class MyApplication : Application() {
         super.onCreate()
         AxeptioSDK.initialize(this) {
             projectId = "your-project-id"
-            appVersion = "1.0.0"
+            appVersion = "1.0.0"          // your app's version name
             token = "your-api-token"
             targetService = AxeptioService.Brands
             // configId = "your-config-id"  // optional — see below
@@ -105,6 +164,8 @@ class MyApplication : Application() {
     }
 }
 ```
+
+Register it in your `AndroidManifest.xml`: `<application android:name=".MyApplication" …>`.
 
 Use `AxeptioService.Publisher` instead for the IAB TCF flow:
 
@@ -121,8 +182,14 @@ If `targetService` is omitted, the SDK defaults to `AxeptioService.Brands`.
 
 #### Configuration ID (optional)
 
-By default the SDK loads the configuration associated with your `projectId`. If your Axeptio project
-has multiple configurations, pass `configId` to select a specific one:
+An Axeptio project can hold several configurations. By default the SDK picks one for you:
+
+* **Brands** — the configuration matching the user's location (and device language), resolved by
+  Axeptio's geolocation service. If that lookup fails, the project's default configuration.
+* **Publisher (TCF)** — the TCF configuration whose language matches the device language,
+  otherwise the first TCF configuration of the project.
+
+Pass `configId` to always use a specific configuration instead:
 
 ```kotlin
 AxeptioSDK.initialize(this) {
@@ -133,14 +200,21 @@ AxeptioSDK.initialize(this) {
 }
 ```
 
-When `configId` is omitted the SDK falls back to the default configuration for the project.
+If `configId` does not match a configuration of the selected `targetService`, the SDK logs a
+warning and resolves one automatically as described above.
+
+> **Note:** consent is stored per configuration. When the resolved configuration changes (for
+> example you change `configId`, or the user moves to a region served by another configuration),
+> the stored consent is discarded and the user is asked again.
 
 #### Environment (optional)
 
 By default the SDK talks to Axeptio's production backend. Pass `environment` to point it at
-staging instead, for testing before you go live:
+Axeptio's staging backend instead — only do this if Axeptio has set up your project there:
 
 ```kotlin
+import io.axeptio.sdk.configuration.AxeptioEnvironment
+
 AxeptioSDK.initialize(this) {
     projectId = "your-project-id"
     appVersion = "1.0.0"
@@ -151,127 +225,43 @@ AxeptioSDK.initialize(this) {
 
 When `environment` is omitted the SDK defaults to `AxeptioEnvironment.Production`.
 
-#### Shutting down
-
-Call `shutdown()` to tear down the SDK — for example between test runs, or if you need to fully
-reset state and re-initialize with different credentials. It detaches all reactive flows and
-releases the SDK's internal dependency graph; a subsequent `initialize()` call starts clean.
-
-```kotlin
-AxeptioSDK.shutdown()
-```
-
-Collect the consent status and react to changes in your `Activity` or `Fragment`:
-
-```kotlin
-lifecycleScope.launch {
-    AxeptioSDK.consentStatusFlow.collect { status ->
-        if (status is ConsentStatus.Ready && status.shouldDisplayConsents) {
-            AxeptioSDK.showConsentFlow(this@MainActivity)
-        }
-    }
-}
-```
-
-### ConsentStatus reference
-
-| Status              | Meaning                                       | Recommended action                   |
-|---------------------|-----------------------------------------------|--------------------------------------|
-| `Ready(true)`       | Consent is required (new, changed or expired) | Call `showConsentFlow()`             |
-| `Ready(false)`      | Consent is current and up to date             | No action needed                     |
-| `ConfigFetchFailed` | Could not fetch remote configuration          | Retry on next app initialization     |
-| `NotInitialized`    | SDK not yet initialized                       | Call `AxeptioSDK.initialize()` first |
-
-### Consent queries
-
-The SDK provides methods to query the current consent state and associated data.
-
-### Clearing consent data
-
-These require a coroutine context (e.g., `lifecycleScope.launch`).
-
-```kotlin
-lifecycleScope.launch {
-    // Clear all stored consent data
-    val cleared = AxeptioSDK.clearConsentData()
-}
-```
-
-#### Callback-based functions
-
-These can be called from anywhere and deliver results via a callback.
-
-```kotlin
-// Check how many days until consent expires (negative if already expired)
-// ttlDays sets the consent lifetime in days and defaults to 190 if omitted
-AxeptioSDK.getRemainingDaysForConsent(ttlDays = 190) { result ->
-    result.onSuccess { days -> /* Int */ }
-}
-
-// Get the unique Axeptio user token
-AxeptioSDK.getAxeptioToken { result ->
-    result.onSuccess { token -> /* String? */ }
-}
-
-// Get all consented vendors (Brands flow)
-AxeptioSDK.getBrandsVendorConsents { result ->
-    result.onSuccess { consents -> /* Map<String, Boolean> */ }
-}
-
-// Get TCF TC String
-AxeptioSDK.getTcfTcString { result ->
-    result.onSuccess { tcString -> /* String? */ }
-}
-
-// Get TCF Vendor Consents
-AxeptioSDK.getTcfVendorConsents { result ->
-    result.onSuccess { consents -> /* Map<String, Boolean> */ }
-}
-```
-
-### Presenting consent screens
-
-The SDK renders its own screens from a `ComponentActivity` — your app does not need to use Jetpack
-Compose.
-
-```kotlin
-// Show the first-run consent flow
-AxeptioSDK.showConsentFlow(activity)
-
-// Open the consent manager (for updates / re-consent)
-AxeptioSDK.showConsentManager(activity)
-
-// Open the permissions screen
-AxeptioSDK.showPermissionsScreen(activity)
-```
-
 ### Requesting Android runtime permissions
 
 Pass the permissions you want the SDK to manage during the consent flow:
 
 ```kotlin
+import android.app.Application
+import io.axeptio.sdk.AxeptioSDK
 import io.axeptio.sdk.configuration.AxeptioPermission
 
-AxeptioSDK.initialize(this) {
-    projectId = "your-project-id"
-    appVersion = "1.0.0"
-    token = "your-api-token"
-    withPermissions(
-        listOf(
-            AxeptioPermission.Camera(),
-            AxeptioPermission.Microphone(
-                title = "Microphone Access",
-                description = "Used for voice features"
-            ),
-            AxeptioPermission.Notifications(),
-            AxeptioPermission.LocationFine(
-                title = "Precise Location",
-                description = "Used to show nearby content"
+class MyApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        AxeptioSDK.initialize(this) {
+            projectId = "your-project-id"
+            appVersion = "1.0.0"
+            token = "your-api-token"
+            withPermissions(
+                listOf(
+                    AxeptioPermission.Camera(),
+                    AxeptioPermission.Microphone(
+                        title = "Microphone Access",
+                        description = "Used for voice features"
+                    ),
+                    AxeptioPermission.Notifications(),
+                    AxeptioPermission.LocationFine(
+                        title = "Precise Location",
+                        description = "Used to show nearby content"
+                    )
+                )
             )
-        )
-    )
+        }
+    }
 }
 ```
+
+Each permission type may appear only once: passing duplicates makes `initialize()` throw
+`IllegalArgumentException`.
 
 `title`/`description` are optional and only control the copy shown on the SDK's own rationale card,
 displayed before the native Android permission dialog — if omitted, the SDK falls back to its own
@@ -301,10 +291,9 @@ For example, to use `AxeptioPermission.Camera()` and `AxeptioPermission.Location
 your manifest:
 
 ```xml
-
-<uses-permission android:name="android.permission.CAMERA" /><uses-permission
-android:name="android.permission.ACCESS_FINE_LOCATION" /><uses-permission
-android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 ```
 
 ### Logging
@@ -312,6 +301,8 @@ android:name="android.permission.ACCESS_COARSE_LOCATION" />
 Control SDK log output (logcat tag `AxeptioSDK`) via `loggerLevel` at initialization:
 
 ```kotlin
+import io.axeptio.sdk.model.AxeptioLogLevel
+
 AxeptioSDK.initialize(this) {
     // ...
     loggerLevel = AxeptioLogLevel.DEBUG
@@ -319,16 +310,195 @@ AxeptioSDK.initialize(this) {
 ```
 
 | Level            | Output                                                                                                   |
-|------------------|----------------------------------------------------------------------------------------------------------|
+|------------------|------------------------------------------------------------------------------------------------------------|
 | `NONE` (default) | Nothing                                                                                                  |
-| `DEBUG`          | Full integration narrative: configuration loading, consent decisions, sync results + warnings and errors |
+| `DEBUG`          | Initialization, the selected configuration, consent saved, IAB TCF values written, warnings and errors  |
+
+#### Showing the consent flow
+
+Collect the consent status in your `Activity` and show the consent flow when it is needed. Use
+`repeatOnLifecycle` so collection stops while the activity is in the background:
+
+```kotlin
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import io.axeptio.sdk.AxeptioSDK
+import io.axeptio.sdk.model.ConsentStatus
+import kotlinx.coroutines.launch
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                AxeptioSDK.consentStatusFlow.collect { status ->
+                    if (status is ConsentStatus.Ready && status.shouldDisplayConsents) {
+                        AxeptioSDK.showConsentFlow(this@MainActivity)
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+In a `Fragment`, launch from `viewLifecycleOwner.lifecycleScope` and collect within
+`viewLifecycleOwner.repeatOnLifecycle(...)`, passing `requireActivity()` to `showConsentFlow`.
+
+Once the user completes the flow and the consent is stored, the status changes to `Ready(false)` —
+observe that transition if you need to know when to initialize consent-dependent SDKs.
+
+The SDK renders its own screens from a `ComponentActivity` — your app does not need to use Jetpack
+Compose. Only call these after `initialize()`: calling one before `initialize()` (or after
+`shutdown()`) throws `SdkNotInitializedException`. Initializing in `Application.onCreate()`, before
+any activity can call these, is the simplest way to avoid it.
+
+```kotlin
+import io.axeptio.sdk.AxeptioSDK
+import io.axeptio.sdk.model.SdkNotInitializedException
+
+// Show the first-run consent flow
+try {
+    AxeptioSDK.showConsentFlow(activity)
+} catch (e: SdkNotInitializedException) {
+    // AxeptioSDK.initialize() hasn't been called yet
+}
+
+// Open the consent manager (for updates / re-consent)
+AxeptioSDK.showConsentManager(activity)
+
+// Open the permissions screen
+AxeptioSDK.showPermissionsScreen(activity)
+```
+
+### ConsentStatus reference
+
+| Status              | Meaning                                                 | Recommended action                        |
+|---------------------|----------------------------------------------------------|--------------------------------------------|
+| `Ready(true)`       | Consent is required (new, changed or expired)           | Call `showConsentFlow()`                  |
+| `Ready(false)`      | Consent is current and up to date                        | No action needed                          |
+| `ConfigFetchFailed` | Could not fetch the configuration and none is cached     | Retry on next app initialization          |
+| `NotInitialized`    | `initialize()` has not been called, or `shutdown()` was  | Call `AxeptioSDK.initialize()` (again, after `shutdown()`) |
+
+> **Note:** right after `initialize()`, nothing is emitted until the configuration has loaded or
+> failed — an earlier collector keeps seeing `NotInitialized` until then. Don't call
+> `initialize()` again in response: the SDK is already initialized at that point, so a second call
+> throws `SdkAlreadyInitializedException` — the flow catches up on its own once loading finishes.
+
+### Consent queries
+
+The SDK provides methods to query the current consent state and associated data. They can be
+called from any thread and deliver their result through a callback.
+
+> **Threading:** callbacks are invoked on a **background thread**, except when the SDK isn't
+> initialized: the `SdkNotInitializedException` failure is then delivered synchronously on the
+> calling thread. Otherwise, switch to the main thread before touching your UI, for example with
+> `runOnUiThread { … }` or `lifecycleScope.launch(Dispatchers.Main) { … }`.
+
+```kotlin
+// Days until the stored consent expires, computed against ttlDays (negative once expired).
+// Returns ttlDays when no consent is stored yet. This is informational only: the SDK itself
+// asks for consent again after 190 days, whatever value you pass here.
+AxeptioSDK.getRemainingDaysForConsent(ttlDays = 190) { result ->
+    result.onSuccess { days -> /* Int */ }
+}
+
+// Get the unique Axeptio user token
+AxeptioSDK.getAxeptioToken { result ->
+    result.onSuccess { token -> /* String? */ }
+}
+
+// Every vendor with a stored choice (Brands flow), keyed by display name — true or false
+AxeptioSDK.getBrandsVendorConsents { result ->
+    result.onSuccess { consents -> /* Map<String, Boolean> */ }
+}
+
+// Get TCF TC String
+AxeptioSDK.getTcfTcString { result ->
+    result.onSuccess { tcString -> /* String? */ }
+}
+
+// Every disclosed vendor's consent (Publisher/TCF flow), keyed by IAB vendor id
+AxeptioSDK.getTcfVendorConsents { result ->
+    result.onSuccess { consents -> /* Map<String, Boolean> */ }
+}
+```
+
+### Clearing consent data
+
+`clearConsentData()` is a `suspend` function, so call it from a coroutine:
+
+```kotlin
+lifecycleScope.launch {
+    val cleared: Boolean = AxeptioSDK.clearConsentData()
+}
+```
+
+It removes the stored consent — including, on the Publisher flow, the `IABTCF_*` values (below) —
+and returns `true` on success, regardless of whether the configuration has finished loading yet.
+`consentStatusFlow` then emits `Ready(true)` immediately, so an active collector shows the consent
+flow again right away. It throws `SdkNotInitializedException` if the SDK is not initialized.
+
+#### Shutting down
+
+Call `shutdown()` to tear down the SDK — for example between test runs, or if you need to fully
+reset state and re-initialize with different credentials. It detaches all reactive flows and
+releases the SDK's internal dependency graph; a subsequent `initialize()` call starts clean.
+Existing `consentStatusFlow` collectors stay subscribed: they receive `NotInitialized`
+immediately, then the new status once you call `initialize()` again. Any open SDK screen (the
+consent flow, consent manager or permissions screen) closes. Calling `shutdown()` when the SDK
+isn't initialized is a no-op.
+
+```kotlin
+AxeptioSDK.shutdown()
+```
+
+### IAB TCF storage (Publisher flow)
+
+In the Publisher flow the SDK writes the standard IAB TCF v2 keys to the app's **default
+`SharedPreferences`** (`PreferenceManager.getDefaultSharedPreferences(context)`), where ad and
+analytics SDKs that support TCF read them automatically:
+
+`IABTCF_TCString`, `IABTCF_CmpSdkID`, `IABTCF_CmpSdkVersion`, `IABTCF_PolicyVersion`,
+`IABTCF_PublisherCC`, `IABTCF_gdprApplies`, `IABTCF_PurposeOneTreatment`,
+`IABTCF_UseNonStandardTexts`, `IABTCF_VendorConsents`, `IABTCF_VendorLegitimateInterests`,
+`IABTCF_DisclosedVendors`, `IABTCF_PurposeConsents`, `IABTCF_PurposeLegitimateInterests`,
+`IABTCF_SpecialFeaturesOptIns`.
+
+## Upgrading from 1.0.1
+
+A few things changed since 1.0.1:
+
+- **`AxeptioPermission` import.** Already importing it from `io.axeptio.sdk.configuration`?
+  Nothing to do. Otherwise replace `import io.axeptio.foundation.core.config.AxeptioPermission`
+  with `import io.axeptio.sdk.configuration.AxeptioPermission`. The old import still compiles, but
+  `withPermissions()` then shows a deprecation warning, and that overload may be removed in a
+  future major release. Three cases stop compiling until you switch:
+  - `permissions = listOf(...)` assigned directly: switch to the new import.
+  - An untyped empty list, `withPermissions(emptyList())` or `withPermissions(listOf())`: add the
+    type, e.g. `withPermissions(emptyList<AxeptioPermission>())`, or remove the call (no
+    permissions is the default).
+  - Reading `permissionType` or `androidPermission` on a permission: use `manifestPermissions`
+    instead, which lists the covered `android.permission.*` strings (`allManifestPermissions` is
+    still available too).
+- **INTERNET permission.** The SDK now declares `android.permission.INTERNET` itself. You can
+  remove it from your own manifest if you only added it for the SDK — keeping it is harmless.
+- **R8 / ProGuard rules.** Consumer rules now ship inside the AAR. Remove any `-keep io.axeptio`
+  rules you had copied into your own ProGuard files.
+- **`show*()` before `initialize()`.** Calling `showConsentFlow()`, `showConsentManager()` or
+  `showPermissionsScreen()` before `initialize()` (or after `shutdown()`) now throws
+  `SdkNotInitializedException` — see [Showing the consent flow](#showing-the-consent-flow).
 
 ## Handling errors
 
-Calling `initialize()` more than once throws `SdkAlreadyInitializedException`. Calling any other
-method before `initialize()` (or after `shutdown()`) throws `SdkNotInitializedException` for
-suspend functions, or delivers `Result.failure(SdkNotInitializedException(...))` for
-callback-based functions - it's never silently swallowed.
+Calling `initialize()` more than once throws `SdkAlreadyInitializedException` — call `shutdown()`
+first to re-initialize. Calling a query method or a `show*` method before `initialize()` (or after
+`shutdown()`) throws `SdkNotInitializedException` for suspend functions and `show*` methods, or
+delivers `Result.failure(SdkNotInitializedException(...))` for callback-based functions - it's never
+silently swallowed.
 
 ```kotlin
 import io.axeptio.sdk.model.SdkNotInitializedException
@@ -342,9 +512,11 @@ AxeptioSDK.getAxeptioToken { result ->
 }
 ```
 
-`consentStatusFlow` never throws: it emits `ConsentStatus.NotInitialized` before `initialize()`,
-after `shutdown()`, and if an unexpected upstream error occurs, rather than cancelling the
-collector.
+`consentStatusFlow` never throws. Before `initialize()` and after `shutdown()` it emits
+`ConsentStatus.NotInitialized`, then switches to live decisions once you call `initialize()` again
+— no re-subscription needed. An unexpected internal error is different: it emits `NotInitialized`
+once and then the flow **completes**, so collect it again (for example, the next
+`repeatOnLifecycle` start) rather than treating that emission as the SDK being uninitialized.
 
 ## Localization
 
@@ -361,6 +533,54 @@ device even if your own app has no French strings at all.
 > locale excluded there is removed from the final APK entirely - including the SDK's - and falls
 > back to the default `values/` (English) for those languages too.
 
+## Network and data collected
+
+The SDK talks to `https://headless-api.axeptio.tech` over HTTPS for configuration and consent
+data. Vendor and brand images shown on the consent screens are downloaded separately, from
+whatever hosts your Axeptio configuration references. Use this list when you fill in Google Play's
+Data safety form:
+
+| Purpose                   | What is sent                                                                                           |
+|---------------------------|--------------------------------------------------------------------------------------------------------|
+| Configuration             | Project ID, configuration ID, `appVersion`, device language                                            |
+| Location-based config     | Project ID and device language (Brands flow; the server derives the region from the request's IP)      |
+| Consent records           | The user's vendor choices, the Axeptio user token, `appVersion`, platform and configuration ID         |
+| TCF                       | Vendor list and TC string encoding requests (Publisher flow)                                           |
+| Usage analytics           | Consent-flow events with timestamp, user agent, Axeptio user token, project and configuration IDs      |
+
+The Axeptio user token is issued by Axeptio's backend on first use and identifies the consent
+record; the SDK does not read the advertising ID.
+
+## Migrating from the WebView SDK
+
+This SDK replaces Axeptio's WebView-based
+[`axeptio-android-sdk`](https://github.com/axeptio/axeptio-android-sdk) with native screens. The two
+are separate products with different artifacts and APIs; do not include both.
+
+| WebView SDK (`axeptio-android-sdk`)                    | Native SDK (this repository)                                     |
+|--------------------------------------------------------|------------------------------------------------------------------|
+| `AxeptioSDK.instance().initialize(activity, …)`        | `AxeptioSDK.initialize(context) { … }`, once, in `Application`   |
+| `clientId`                                             | `projectId`                                                      |
+| `cookiesVersion`                                       | `configId` (optional — resolved automatically when omitted)      |
+| `token` (transfers an existing consent)                | Not supported. `token` is now your project's API token           |
+| `AxeptioService.PUBLISHERS_TCF` / `BRANDS`             | `AxeptioService.Publisher` / `AxeptioService.Brands`             |
+| `showConsentScreen(activity)`                          | `showConsentFlow(activity)` / `showConsentManager(activity)`     |
+| `setEventListener` (`onPopupClosedEvent`, `onConsentSaved`, …) | Collect `consentStatusFlow`                               |
+| `clearConsents()`                                      | `clearConsentData()`                                             |
+| `getRemainingDaysForConsent()`                         | `getRemainingDaysForConsent(ttlDays) { … }`                      |
+| `getVendorConsents()` / `isVendorConsented(id)`        | `getTcfVendorConsents { … }` (keyed by IAB vendor id) / `getBrandsVendorConsents { … }` (keyed by display name) |
+| `token` / `appendAxeptioToken(uri)` for WebViews       | `getAxeptioToken { … }` (no URL helper)                          |
+| `onGoogleConsentModeUpdate`                            | Not supported yet                                                |
+
+### Not supported yet
+
+* Google Consent Mode v2 updates
+* IAB GPP strings
+* A consent-change listener with the user's choices (observe `consentStatusFlow` instead)
+* Sharing consent with WebViews through a URL helper
+* Customizing the SDK's theme from code (the look comes from your Axeptio configuration)
+* Java callers
+
 ## Example App
 
 A sample app is included alongside the published SDK to show it in action. It is a standalone Gradle
@@ -374,23 +594,25 @@ exactly as your own app would.
    ```
 
 2. Open the `sampleApp/` folder in Android Studio (or run it from the command line).
-3. Set your Axeptio credentials in `sampleApp/app/src/main/kotlin/io/axeptio/sample/config` (or via
-   the in-app **SDK Configuration** screen), choose a device or emulator, and **Run** the `app`
-   configuration:
+3. Choose a device or emulator and **Run** the `app` configuration. It starts on a public Axeptio
+   demo project; to use your own, change the defaults in
+   `sampleApp/app/src/main/kotlin/io/axeptio/sample/config/AxeptioConfigManager.kt` or use the in-app
+   **SDK Configuration** screen:
 
    ```sh
-   cd sampleApp
-   ./gradlew :app:assembleDebug
+   cd sampleApp && ./gradlew :app:installDebug
    ```
 
-The sample app lets you configure project credentials at runtime and demonstrates all consent flows,
-the permissions screen, and consent status handling.
+The sample app shows initialization, lifecycle-aware consent status handling, the consent flow, the
+consent manager, the permissions screen, the consent queries and re-initialization with new
+credentials. See `sampleApp/README.md` for details.
 
 ## Support
 
 For integration questions, bug reports or feature requests, contact Axeptio support at
-**support@axeptio.eu**. To report a security vulnerability, see [SECURITY.md](SECURITY.md).
+**support@axeptio.eu** or visit the [help centre](https://support.axeptio.eu). Release notes are on the
+[releases page](https://github.com/axeptio/native-android-sdk/releases). To report a security vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## License
 
-The Axeptio Android SDK is distributed under Axeptio's licensing terms — see [LICENSE](LICENSE).
+The Axeptio Native Android SDK is distributed under Axeptio's licensing terms — see [LICENSE](LICENSE).

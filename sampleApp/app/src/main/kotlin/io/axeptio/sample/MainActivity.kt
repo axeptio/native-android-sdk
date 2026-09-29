@@ -1,6 +1,5 @@
 package io.axeptio.sample
 
-import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -14,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -23,29 +24,42 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import io.axeptio.sample.config.ConfigRepository
+import io.axeptio.sample.config.SDKConfigurer
 import io.axeptio.sample.theme.SampleAppTheme
 import io.axeptio.sdk.AxeptioSDK
 import io.axeptio.sdk.model.ConsentStatus
 import kotlinx.coroutines.launch
 
+private const val TAG = "AxeptioSample"
+private const val KeyConsentFlowLaunched = "consentFlowLaunched"
+
 class MainActivity : ComponentActivity() {
+
+    // Whether the consent flow was already launched for the current "consent required" status.
+    // Saved across recreation (e.g. rotation) so the flow is not launched a second time.
+    private var consentFlowLaunched = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val repository = ConfigRepository.create(this)
+        consentFlowLaunched = savedInstanceState?.getBoolean(KeyConsentFlowLaunched) ?: false
+        observeConsentStatus()
 
+        val repository = ConfigRepository.create(this)
         setContent {
             SampleAppTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -57,6 +71,45 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KeyConsentFlowLaunched, consentFlowLaunched)
+    }
+
+    /**
+     * Collects the consent status only while the activity is visible, and shows the consent
+     * flow when the SDK reports that consent is required.
+     */
+    private fun observeConsentStatus() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                AxeptioSDK.consentStatusFlow.collect(::onConsentStatus)
+            }
+        }
+    }
+
+    private fun onConsentStatus(status: ConsentStatus) {
+        Log.d(TAG, "Consent status updated: $status")
+        when (status) {
+            is ConsentStatus.Ready -> if (status.shouldDisplayConsents) {
+                // New user, changed vendors or expired consent.
+                if (!consentFlowLaunched) {
+                    consentFlowLaunched = true
+                    AxeptioSDK.showConsentFlow(this)
+                }
+            } else {
+                // Consent is stored and current: consent-dependent SDKs can start here.
+                consentFlowLaunched = false
+            }
+
+            // Before initialize(), or after shutdown() while the SDK is re-initialized.
+            is ConsentStatus.NotInitialized -> consentFlowLaunched = false
+
+            // The SDK retries on the next initialization.
+            is ConsentStatus.ConfigFetchFailed -> Log.w(TAG, "Could not fetch the configuration")
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,68 +118,36 @@ private fun MainContent(
     activity: ComponentActivity,
     repository: ConfigRepository,
 ) {
-    val savedConfig = remember { repository.load() }
-    var currentConfig by remember { mutableStateOf(savedConfig) }
-    var showConfigSheet by remember { mutableStateOf(currentConfig == null) }
+    val scope = rememberCoroutineScope()
+    var currentConfig by remember { mutableStateOf(repository.load() ?: repository.getDefault()) }
+    var showConfigSheet by remember { mutableStateOf(false) }
+    var consentDetails by remember { mutableStateOf<ConsentDetails?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    LaunchedEffect(Unit) {
-        AxeptioSDK.consentStatusFlow
-            .collect { status ->
-                Log.d("SDKConfigurer", "Consent status updated: $status")
-
-                when (status) {
-                    is ConsentStatus.Ready -> {
-                        if (status.shouldDisplayConsents) {
-                            Log.d(
-                                "SDKConfigurer",
-                                "User consent is required. Show the consent flow to " +
-                                    "collect or update their preferences."
-                            )
-                            AxeptioSDK.showConsentFlow(activity)
-                        } else {
-                            Log.d(
-                                "SDKConfigurer",
-                                "User's consent is valid and up to date. No action needed."
-                            )
-                        }
-                    }
-
-                    is ConsentStatus.NotInitialized -> {
-                        Log.d(
-                            "SDKConfigurer",
-                            "SDK not initialized yet; waiting for initialization to complete"
-                        )
-                    }
-
-                    is ConsentStatus.ConfigFetchFailed -> {
-                        Log.d(
-                            "SDKConfigurer",
-                            "Failed to fetch configuration from server. " +
-                                "The SDK will retry automatically on the next initialization."
-                        )
-                    }
-                }
-            }
-    }
-
     SampleScreen(
-        onShowConsentFlow = {
-            AxeptioSDK.showConsentFlow(activity)
-        },
-        onShowConsentManager = {
-            AxeptioSDK.showConsentManager(activity)
-        },
-        onShowPermissions = {
-            AxeptioSDK.showPermissionsScreen(activity)
-        },
-        onShowConfig = { showConfigSheet = true },
-        onClearConsentData = {
-            activity.lifecycleScope.launch {
-                val cleared = AxeptioSDK.clearConsentData()
-                Log.d("AxeptioSDK", "Consent data cleared: $cleared")
-            }
-        }
+        consentDetails = consentDetails,
+        actions = SampleActions(
+            onShowConsentFlow = {
+                AxeptioSDK.showConsentFlow(activity)
+            },
+            onShowConsentManager = {
+                AxeptioSDK.showConsentManager(activity)
+            },
+            onShowPermissions = {
+                AxeptioSDK.showPermissionsScreen(activity)
+            },
+            onShowConsentDetails = {
+                scope.launch { consentDetails = loadConsentDetails(activity) }
+            },
+            onShowConfig = { showConfigSheet = true },
+            onClearConsentData = {
+                scope.launch {
+                    val cleared = AxeptioSDK.clearConsentData()
+                    Log.d(TAG, "Consent data cleared: $cleared")
+                    consentDetails = null
+                }
+            },
+        ),
     )
 
     if (showConfigSheet) {
@@ -135,43 +156,40 @@ private fun MainContent(
             onDismissRequest = { showConfigSheet = false }
         ) {
             ConfigScreen(
-                initialConfig = currentConfig ?: repository.getDefault(),
+                initialConfig = currentConfig,
                 onConfigSaved = { config ->
                     repository.save(config)
-                    restartApp(activity)
+                    // Re-initializing requires a shutdown first; consentStatusFlow keeps
+                    // emitting across both calls, so the collector above needs no change.
+                    AxeptioSDK.shutdown()
+                    SDKConfigurer.initialize(activity.applicationContext, config)
+                    currentConfig = config
+                    consentDetails = null
+                    showConfigSheet = false
                 }
             )
         }
     }
 }
 
-/**
- * Restarts the app to re-initialize the SDK with the new configuration.
- * NOTE: This is a sample-app specific utility and not a recommended pattern
- * for production apps. In a real app, you would typically handle configuration
- * changes more gracefully or use a library like ProcessPhoenix for reliable restarts.
- */
-private fun restartApp(activity: ComponentActivity) {
-    val intent = activity.packageManager.getLaunchIntentForPackage(activity.packageName)
-    if (intent != null) {
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-        activity.startActivity(intent)
-        activity.finish()
-        Runtime.getRuntime().exit(0)
-    }
-}
+private data class SampleActions(
+    val onShowConsentFlow: () -> Unit = {},
+    val onShowConsentManager: () -> Unit = {},
+    val onShowPermissions: () -> Unit = {},
+    val onShowConsentDetails: () -> Unit = {},
+    val onShowConfig: () -> Unit = {},
+    val onClearConsentData: () -> Unit = {},
+)
 
 @Composable
 private fun SampleScreen(
-    onShowConsentFlow: () -> Unit,
-    onShowConsentManager: () -> Unit,
-    onShowPermissions: () -> Unit,
-    onShowConfig: () -> Unit,
-    onClearConsentData: () -> Unit,
+    consentDetails: ConsentDetails?,
+    actions: SampleActions,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .safeDrawingPadding()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -185,7 +203,7 @@ private fun SampleScreen(
         Spacer(Modifier.height(32.dp))
 
         Button(
-            onClick = onShowConsentFlow,
+            onClick = actions.onShowConsentFlow,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.btn_show_consent_flow))
@@ -194,7 +212,7 @@ private fun SampleScreen(
         Spacer(Modifier.height(12.dp))
 
         OutlinedButton(
-            onClick = onShowConsentManager,
+            onClick = actions.onShowConsentManager,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.btn_open_consent_manager))
@@ -203,16 +221,42 @@ private fun SampleScreen(
         Spacer(Modifier.height(12.dp))
 
         OutlinedButton(
-            onClick = onShowPermissions,
+            onClick = actions.onShowPermissions,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.btn_open_permissions_screen))
         }
 
+        Spacer(Modifier.height(12.dp))
+
+        OutlinedButton(
+            onClick = actions.onShowConsentDetails,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.btn_show_consent_details))
+        }
+
+        consentDetails?.let {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = stringResource(
+                    R.string.consent_details,
+                    it.remainingDays,
+                    it.axeptioToken,
+                    it.brandsVendorConsents,
+                    it.tcfTcString,
+                    it.tcfVendorConsents,
+                    it.iabTcfGdprApplies,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
         Spacer(Modifier.height(48.dp))
 
         OutlinedButton(
-            onClick = onShowConfig,
+            onClick = actions.onShowConfig,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.btn_sdk_configuration))
@@ -221,7 +265,7 @@ private fun SampleScreen(
         Spacer(Modifier.height(48.dp))
 
         Button(
-            onClick = onClearConsentData,
+            onClick = actions.onClearConsentData,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.btn_sdk_clear_consents))
@@ -232,11 +276,5 @@ private fun SampleScreen(
 @Preview(showBackground = true)
 @Composable
 private fun SampleScreenPreview() {
-    SampleScreen(
-        onShowConsentFlow = {},
-        onShowConsentManager = {},
-        onShowPermissions = {},
-        onShowConfig = {},
-        onClearConsentData = {},
-    )
+    SampleScreen(consentDetails = null, actions = SampleActions())
 }

@@ -5,8 +5,11 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
-    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- INTERNET is not declared here: the SDK declares it in its own manifest,
+         and Gradle merges it into every consumer automatically. -->
 
+    <!-- One group per AxeptioPermission passed to withPermissions() in SDKConfigurer.
+         Declare only the ones your app requests (see the README's permission table). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -36,7 +39,7 @@
 
     <application
         android:name=".SampleApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:label="@string/app_name"
         android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
