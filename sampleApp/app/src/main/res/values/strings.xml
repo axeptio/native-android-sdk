@@ -11,6 +11,8 @@
     <string name="consent_details">Remaining days: %1$s\nAxeptio token: %2$s\nBrands vendor consents: %3$s\nTCF TC string: %4$s\nTCF vendor consents: %5$s\nIABTCF_gdprApplies: %6$s</string>
     <string name="btn_sdk_configuration">SDK Configuration</string>
     <string name="btn_sdk_clear_consents">Clear local consents</string>
+    <string name="events_title">Events</string>
+    <string name="events_empty">No events yet</string>
 
     <!-- ConfigScreen -->
     <string name="config_title">SDK Configuration</string>
@@ -29,4 +31,7 @@
     <string name="permission_microphone_description">We need microphone access.</string>
     <string name="permission_notifications_title">Notifications</string>
     <string name="permission_notifications_description">We want to send you alerts.</string>
+
+    <!-- HealthPermissionsRationaleActivity -->
+    <string name="health_permissions_rationale">Privacy policy\n\nThis sample app requests the heart rate permission only to demonstrate the Axeptio SDK permissions screen. It does not read, store or share any health data.</string>
 </resources>

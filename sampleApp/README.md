@@ -42,6 +42,8 @@ they are kept across launches.
 | `SampleApplication`                         | Initializing the SDK once, in `Application.onCreate()`                               |
 | `config/SDKConfigurer`                      | The initialization options, logging, and the Android permissions the SDK can request |
 | `MainActivity.observeConsentStatus`         | Collecting `consentStatusFlow` with `repeatOnLifecycle`, and showing the consent flow once when consent is required |
+| `SampleEventLogger`                         | An `AxeptioEventListener` registered before `initialize()`: flow closed, consents updated, errors |
+| **Events** (`EventLogPanel`, `EventLog`)    | The events above and each new consent status, newest first                           |
 | **Show flow starting with Consents**        | `AxeptioSDK.showConsentFlow`                                                         |
 | **Open Consent Manager**                    | `AxeptioSDK.showConsentManager`, for users who want to change their choices          |
 | **Open Permissions Screen**                 | `AxeptioSDK.showPermissionsScreen`                                                   |

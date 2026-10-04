@@ -24,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -62,7 +65,8 @@ class MainActivity : ComponentActivity() {
         val repository = ConfigRepository.create(this)
         setContent {
             SampleAppTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                // Test tags as resource ids: the emulator tests find the Events panel by its tag.
+                Surface(modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }) {
                     MainContent(
                         activity = this@MainActivity,
                         repository = repository,
@@ -91,6 +95,7 @@ class MainActivity : ComponentActivity() {
 
     private fun onConsentStatus(status: ConsentStatus) {
         Log.d(TAG, "Consent status updated: $status")
+        SampleEventLogger.onConsentStatus(status)
         when (status) {
             is ConsentStatus.Ready -> if (status.shouldDisplayConsents) {
                 // New user, changed vendors or expired consent.
@@ -122,10 +127,12 @@ private fun MainContent(
     var currentConfig by remember { mutableStateOf(repository.load() ?: repository.getDefault()) }
     var showConfigSheet by remember { mutableStateOf(false) }
     var consentDetails by remember { mutableStateOf<ConsentDetails?>(null) }
+    val events by SampleEventLogger.entries.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     SampleScreen(
         consentDetails = consentDetails,
+        events = events,
         actions = SampleActions(
             onShowConsentFlow = {
                 AxeptioSDK.showConsentFlow(activity)
@@ -184,6 +191,7 @@ private data class SampleActions(
 @Composable
 private fun SampleScreen(
     consentDetails: ConsentDetails?,
+    events: List<EventLog.Entry>,
     actions: SampleActions,
 ) {
     Column(
@@ -270,11 +278,15 @@ private fun SampleScreen(
         ) {
             Text(stringResource(R.string.btn_sdk_clear_consents))
         }
+
+        Spacer(Modifier.height(48.dp))
+
+        EventLogPanel(entries = events)
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun SampleScreenPreview() {
-    SampleScreen(consentDetails = null, actions = SampleActions())
+    SampleScreen(consentDetails = null, events = emptyList(), actions = SampleActions())
 }

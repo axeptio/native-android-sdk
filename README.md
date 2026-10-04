@@ -44,8 +44,8 @@ You need an Axeptio project set up for mobile in the
 | `projectId`     | Yes      | Your Axeptio project identifier, from the back-office.                                                                                                         |
 | `appVersion`    | Yes      | Sent with every configuration request as the `version` parameter. Use your app's version name.                                                                |
 | `token`         | No       | Your project's API token, from the back-office. When set, it is sent as a `Bearer` authorization header on every request.                                     |
-| `targetService` | No       | `AxeptioService.Brands` (default) or `AxeptioService.Publisher` (IAB TCF). Must match the configurations defined in your project.                             |
-| `configId`      | No       | Pins one configuration of the project — see [Configuration ID](#configuration-id-optional).                                                                    |
+| `targetService` | No       | `AxeptioService.Brands` (default) or `AxeptioService.Publisher` (IAB TCF). Without `configId`, must match the configurations defined in your project.         |
+| `configId`      | No       | Pins one configuration of the project; its flow then wins over `targetService` — see [Configuration ID](#configuration-id-optional).                          |
 
 If you are unsure which values to use, contact [Axeptio support](#support).
 
@@ -91,7 +91,7 @@ Then add the dependency to your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("io.axeptio:sdk:1.1.0")
+    implementation("io.axeptio:sdk:1.2.0")
 }
 ```
 
@@ -99,7 +99,7 @@ Or using Gradle Groovy DSL in `build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'io.axeptio:sdk:1.1.0'
+    implementation 'io.axeptio:sdk:1.2.0'
 }
 ```
 
@@ -200,8 +200,12 @@ AxeptioSDK.initialize(this) {
 }
 ```
 
-If `configId` does not match a configuration of the selected `targetService`, the SDK logs a
-warning and resolves one automatically as described above.
+A pinned `configId` decides the flow, as on iOS: the SDK looks it up among all the project's
+configurations, so pinning a TCF configuration runs the Publisher (TCF) flow even when
+`targetService` is omitted or `AxeptioService.Brands`, and pinning a Brands configuration runs the
+Brands flow even with `AxeptioService.Publisher`. Neither geolocation nor the device language is
+used. If `configId` matches no configuration of the project, the SDK logs a warning and uses the
+project's default configuration.
 
 > **Note:** consent is stored per configuration. When the resolved configuration changes (for
 > example you change `configId`, or the user moves to a region served by another configuration),
@@ -223,7 +227,10 @@ AxeptioSDK.initialize(this) {
 }
 ```
 
-When `environment` is omitted the SDK defaults to `AxeptioEnvironment.Production`.
+When `environment` is omitted the SDK defaults to `AxeptioEnvironment.Production`. The configuration
+and vendor data the SDK caches for offline use, and the user token and configuration id it stores,
+are kept apart per environment. The user's consent and the `IABTCF_*` keys are not: they are the
+user's on this device.
 
 ### Requesting Android runtime permissions
 
@@ -283,7 +290,7 @@ manifest permission(s):
 | `Calendar`          | `android.permission.READ_CALENDAR`, `android.permission.WRITE_CALENDAR`                                                                           |
 | `Bluetooth`         | `android.permission.BLUETOOTH_SCAN`, `android.permission.BLUETOOTH_CONNECT`                                                                       |
 | `PhotoLibrary`      | `android.permission.READ_MEDIA_IMAGES`, `android.permission.READ_MEDIA_VIDEO`, `android.permission.READ_MEDIA_VISUAL_USER_SELECTED` (Android 14+) |
-| `BodySensors`       | `android.permission.BODY_SENSORS`                                                                                                                 |
+| `BodySensors`       | `android.permission.BODY_SENSORS`, plus `android.permission.health.READ_HEART_RATE` when targeting API 36 (see below)                            |
 | `PhoneAccount`      | `android.permission.READ_PHONE_STATE`                                                                                                             |
 | `Fitness`           | `android.permission.ACTIVITY_RECOGNITION`                                                                                                         |
 
@@ -295,6 +302,19 @@ your manifest:
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 ```
+
+Android 16 (API 36) replaces `BODY_SENSORS` with `android.permission.health.READ_HEART_RATE` for apps
+targeting API 36, so on Android 16+ `BodySensors` requests both and the system asks for the one your
+app declares. An app targeting API 36 declares:
+
+```xml
+<uses-permission android:name="android.permission.BODY_SENSORS" android:maxSdkVersion="35" />
+<uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+```
+
+Android also requires such an app to show its privacy policy from an activity handling
+`android.intent.action.VIEW_PERMISSION_USAGE` in the `android.intent.category.HEALTH_PERMISSIONS`
+category (see the [Android 16 behaviour changes](https://developer.android.com/about/versions/16/behavior-changes-16)).
 
 ### Logging
 
@@ -354,7 +374,8 @@ observe that transition if you need to know when to initialize consent-dependent
 The SDK renders its own screens from a `ComponentActivity` — your app does not need to use Jetpack
 Compose. Only call these after `initialize()`: calling one before `initialize()` (or after
 `shutdown()`) throws `SdkNotInitializedException`. Initializing in `Application.onCreate()`, before
-any activity can call these, is the simplest way to avoid it.
+any activity can call these, is the simplest way to avoid it. (The iOS SDK reports `notInitialized`
+to its error handler instead of throwing.)
 
 ```kotlin
 import io.axeptio.sdk.AxeptioSDK
@@ -378,9 +399,9 @@ AxeptioSDK.showPermissionsScreen(activity)
 
 | Status              | Meaning                                                 | Recommended action                        |
 |---------------------|----------------------------------------------------------|--------------------------------------------|
-| `Ready(true)`       | Consent is required (new, changed or expired)           | Call `showConsentFlow()`                  |
+| `Ready(true)`       | Consent is required: none yet, expired, or asked again ([below](#when-the-sdk-asks-again)) | Call `showConsentFlow()`                  |
 | `Ready(false)`      | Consent is current and up to date                        | No action needed                          |
-| `ConfigFetchFailed` | Could not fetch the configuration and none is cached     | Retry on next app initialization          |
+| `ConfigFetchFailed` | Could not fetch the configuration and none is cached     | Retry: `shutdown()`, then `initialize()` again |
 | `NotInitialized`    | `initialize()` has not been called, or `shutdown()` was  | Call `AxeptioSDK.initialize()` (again, after `shutdown()`) |
 
 > **Note:** right after `initialize()`, nothing is emitted until the configuration has loaded or
@@ -388,21 +409,47 @@ AxeptioSDK.showPermissionsScreen(activity)
 > `initialize()` again in response: the SDK is already initialized at that point, so a second call
 > throws `SdkAlreadyInitializedException` — the flow catches up on its own once loading finishes.
 
+### When the SDK asks again
+
+Like the Axeptio web CMPs, `Ready(true)` comes back for a user who already consented only when:
+
+| Reason | Brands | TCF (Publisher) |
+|---|---|---|
+| Consent lifetime passed | 190 days | The configuration's `expirationTtlDays` (1 to 190 days), else 190 |
+| The configuration asks for a new consent (its **askNewConsent** setting) | A vendor it configures has no choice from the user yet (a new vendor). A removed vendor doesn't count | Its CMP version differs from the one the consent was given under |
+| Another configuration is resolved (e.g. another language or country) | ✓ | ✓ |
+
+Without **askNewConsent**, vendor-list or CMP-version changes never ask again; a new TCF vendor
+list (GVL version) alone never does. Both rules use the configuration in use - the one cached from
+an earlier session until the network answers. The lifetime is fixed when the consent is saved, like
+the web CMPs: a later change of `expirationTtlDays` only applies to new consents. A consent saved by
+an earlier SDK version keeps the lifetime of the configuration in use when this version first loads
+one.
+
 ### Consent queries
 
 The SDK provides methods to query the current consent state and associated data. They can be
 called from any thread and deliver their result through a callback.
 
-> **Threading:** callbacks are invoked on a **background thread**, except when the SDK isn't
-> initialized: the `SdkNotInitializedException` failure is then delivered synchronously on the
-> calling thread. Otherwise, switch to the main thread before touching your UI, for example with
-> `runOnUiThread { … }` or `lifecycleScope.launch(Dispatchers.Main) { … }`.
+> **Threading:** callbacks are invoked on a **background thread** (the SDK's `Dispatchers.IO`
+> scope), except when the SDK isn't initialized: the `SdkNotInitializedException` failure is then
+> delivered synchronously on the calling thread. Otherwise, switch to the main thread before
+> touching your UI, for example with `runOnUiThread { … }` or
+> `lifecycleScope.launch(Dispatchers.Main) { … }`. The [event listener](#sdk-events) is the
+> exception: it is always called on the main thread.
+
+Every query but `getAxeptioToken()`, made right after `initialize()`, waits for the configuration
+(cached, else fetched). If `shutdown()` tears the SDK down before a query answers, its callback gets
+`Result.failure(SdkNotInitializedException(...))`, on a background thread - it is always called
+back. While an open SDK screen keeps that SDK instance alive, the query answers from it instead,
+or fails the same way if that screen closes first.
 
 ```kotlin
-// Days until the stored consent expires, computed against ttlDays (negative once expired).
-// Returns ttlDays when no consent is stored yet. This is informational only: the SDK itself
-// asks for consent again after 190 days, whatever value you pass here.
-AxeptioSDK.getRemainingDaysForConsent(ttlDays = 190) { result ->
+// Days until the stored consent expires (negative once expired), counted against the lifetime the
+// consent was saved with (TCF: the configuration's expirationTtlDays, else 190; Brands: 190) or a shorter
+// ttlDays of your own - a longer one is capped at the lifetime. Returns that duration when no
+// consent is stored yet. ttlDays never changes when the SDK itself asks again.
+AxeptioSDK.getRemainingDaysForConsent { result ->
     result.onSuccess { days -> /* Int */ }
 }
 
@@ -421,7 +468,9 @@ AxeptioSDK.getTcfTcString { result ->
     result.onSuccess { tcString -> /* String? */ }
 }
 
-// Every disclosed vendor's consent (Publisher/TCF flow), keyed by IAB vendor id
+// Every disclosed vendor's consent (Publisher/TCF flow), keyed by IAB vendor id. A vendor the
+// user accepted for a special feature only reads true, though the TC string has no consent bit
+// for it.
 AxeptioSDK.getTcfVendorConsents { result ->
     result.onSuccess { consents -> /* Map<String, Boolean> */ }
 }
@@ -440,7 +489,8 @@ lifecycleScope.launch {
 It removes the stored consent — including, on the Publisher flow, the `IABTCF_*` values (below) —
 and returns `true` on success, regardless of whether the configuration has finished loading yet.
 `consentStatusFlow` then emits `Ready(true)` immediately, so an active collector shows the consent
-flow again right away. It throws `SdkNotInitializedException` if the SDK is not initialized.
+flow again right away, and the [event listener](#sdk-events) gets `onConsentsUpdated()`. It throws
+`SdkNotInitializedException` if the SDK is not initialized.
 
 #### Shutting down
 
@@ -452,9 +502,72 @@ immediately, then the new status once you call `initialize()` again. Any open SD
 consent flow, consent manager or permissions screen) closes. Calling `shutdown()` when the SDK
 isn't initialized is a no-op.
 
+Once `shutdown()` returns, the [event listener](#sdk-events) hears nothing more from that SDK
+instance, not even an event that happened just before. Two exceptions: `onConsentFlowClosed()`, for
+a screen the shutdown closed, and an `AxeptioError.Internal` from a `consentStatusFlow` collection,
+which isn't tied to an SDK instance. A consent query still waiting for the configuration fails with
+`SdkNotInitializedException` (see [Consent queries](#consent-queries)). Like `removeEventListener()`, called from another thread while a
+listener callback runs on the main thread, `shutdown()` waits for that callback to return.
+
 ```kotlin
 AxeptioSDK.shutdown()
 ```
+
+### SDK events
+
+Set an `AxeptioEventListener` to hear when an SDK screen closes, when the user's consent changes,
+and when the SDK hits an error. Override only the callbacks you need:
+
+```kotlin
+class App : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        // Before initialize(), to also hear about a failed configuration fetch.
+        AxeptioSDK.setEventListener(object : AxeptioEventListener {
+            override fun onConsentFlowClosed() { /* the consent UI went away */ }
+            override fun onConsentsUpdated() { /* re-read getTcfTcString(), getBrandsVendorConsents()… */ }
+            override fun onError(error: AxeptioError) { Log.w("App", error.message) }
+        })
+        AxeptioSDK.initialize(this) { /* … */ }
+    }
+}
+```
+
+| Callback | When |
+|---|---|
+| `onConsentFlowClosed()` | A screen opened by `showConsentFlow()`, `showConsentManager()` or `showPermissionsScreen()` went away: finished, dismissed with Back, or closed by the SDK. Once per screen, never for a rotation. |
+| `onConsentsUpdated()` | The consent stored on the device changed: a new choice was saved (Brands), its `IABTCF_*` keys were written (TCF), a previously unsynced choice was synced on a retry, or `clearConsentData()` cleared it. The query methods above already return the new values. |
+| `onError(AxeptioError)` | The SDK hit an error: a failed configuration load - the configuration fetch, else its vendor list (Brands vendors or TCF configuration), else the user token request; once per load, reported even when cached data keeps the SDK working (`consentStatusFlow` tells whether the consent flow can be shown); a consent choice that couldn't be synced to the backend; or an unexpected internal error. |
+
+`AxeptioError` cases: `InvalidAuthToken` (the backend rejected the token, HTTP 401),
+`ConfigurationUnavailable` (the project has no configuration), and `Network(failure)` with
+`NetworkFailure.Connectivity`, `Server(statusCode)` or `InvalidResponse`,
+`ConsentSyncFailed(failure)` and `Internal(cause)`. Each has a `message` for logs. More cases may
+come in minor releases, so give a `when` over them an `else` branch.
+
+- `ConsentSyncFailed`: the user's choice is stored and applied on the device, but the SDK gave up
+  sending it to the backend after its retries (typically offline). It retries at the next app
+  starts on its own; the error is reported once per given-up choice, not again for those retries.
+  `failure` is always `null` for now; a later release may say how the sync failed, as iOS does.
+- `Internal`: an unexpected error inside the SDK, with its `cause` - for example
+  `consentStatusFlow` failing to read the stored consent (see [Handling errors](#handling-errors)),
+  or a failure in the SDK's background work, which never crashes your app. The latter is reported
+  once, and never after `shutdown()`.
+
+- **Threading:** callbacks run on the **main thread**; `setEventListener()` and
+  `removeEventListener()` can be called from any thread.
+- **One listener:** `setEventListener()` replaces the previous listener; `setEventListener(null)` or
+  `removeEventListener()` removes it. Once that returns, the removed listener is never called again.
+  The trade-off: called from another thread while a callback runs on the main thread, these calls
+  (and `shutdown()`) **block** until that callback returns, so keep callbacks short and never make
+  one wait on a thread that may be setting or removing the listener or shutting the SDK down
+  (deadlock). On the main thread they never block.
+- **Lifetime:** the SDK keeps a strong reference to the listener until it is removed, across
+  `shutdown()` and a new `initialize()`. Register an `Application`-scoped listener (as above), or
+  remove an `Activity`-scoped one in `onDestroy()` so the SDK doesn't leak the activity.
+- **Failures:** anything a callback throws is logged and swallowed.
+- **Java:** implement `AxeptioEventListener` and override only what you need - the other methods
+  are default methods. Call `AxeptioSDK.INSTANCE.setEventListener(listener)`.
 
 ### IAB TCF storage (Publisher flow)
 
@@ -467,6 +580,16 @@ analytics SDKs that support TCF read them automatically:
 `IABTCF_UseNonStandardTexts`, `IABTCF_VendorConsents`, `IABTCF_VendorLegitimateInterests`,
 `IABTCF_DisclosedVendors`, `IABTCF_PurposeConsents`, `IABTCF_PurposeLegitimateInterests`,
 `IABTCF_SpecialFeaturesOptIns`.
+
+When the configuration selects purposes or stacks, the consent screens list purpose 1, those
+purposes and the selected stacks' purposes besides the vendors' own, even when no vendor declares
+them, like the iOS SDK. Without configured purposes or stacks, the screens list the vendors'
+purposes only.
+
+Accepting everything takes the whole TCF catalog, like the web CMP and the iOS SDK: every purpose is
+consented, every purpose but 1 and 3-6 (consent only) is under legitimate interest, and every
+special feature is opted in, in the TC string and the `IABTCF_*` keys. Saving custom choices is
+narrower: a purpose no vendor declares has no toggle in the details, as on iOS, so it stays refused.
 
 ## Upgrading from 1.0.1
 
@@ -512,11 +635,22 @@ AxeptioSDK.getAxeptioToken { result ->
 }
 ```
 
+Errors the SDK hits on its own, such as a configuration fetch rejected for a bad token, are
+reported to the [event listener](#sdk-events)'s `onError()`.
+
+When the configuration couldn't be fetched and none is cached, `consentStatusFlow` emits
+`ConfigFetchFailed` and the SDK doesn't retry on its own. To retry (for example once the device is
+back online), call `shutdown()` then `initialize()` again: a second `initialize()` without
+`shutdown()` throws `SdkAlreadyInitializedException` (the iOS SDK takes it directly). Existing
+`consentStatusFlow` collectors stay subscribed and see the new status.
+
 `consentStatusFlow` never throws. Before `initialize()` and after `shutdown()` it emits
 `ConsentStatus.NotInitialized`, then switches to live decisions once you call `initialize()` again
 — no re-subscription needed. An unexpected internal error is different: it emits `NotInitialized`
 once and then the flow **completes**, so collect it again (for example, the next
-`repeatOnLifecycle` start) rather than treating that emission as the SDK being uninitialized.
+`repeatOnLifecycle` start) rather than treating that emission as the SDK being uninitialized. The
+error is also reported to the event listener as `AxeptioError.Internal`, once per collection that
+hit it. (The iOS stream never finishes on its own.)
 
 ## Localization
 
@@ -526,12 +660,14 @@ Norwegian Bokmål, Polish, Portuguese, Romanian, Russian, Slovak, Slovenian, Spa
 
 All 26 are bundled into the AAR and merged straight into your app by Gradle, so the SDK's screens
 resolve independently against the device's locale - they'll show, say, French on a French-language
-device even if your own app has no French strings at all.
+device even if your own app has no French strings at all. Norwegian Bokmål resolves on both the
+`nb` locale Android devices report and the legacy `no` code.
 
 > **Important:** If your app strips locales at build time to reduce APK size (via
 > `resourceConfigurations` or `androidResources.localeFilters` in Android Gradle Plugin), any
 > locale excluded there is removed from the final APK entirely - including the SDK's - and falls
-> back to the default `values/` (English) for those languages too.
+> back to the default `values/` (English) for those languages too. To keep Norwegian, keep `nb`
+> (and `no` if your app uses it).
 
 ## Network and data collected
 

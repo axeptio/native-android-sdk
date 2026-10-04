@@ -5,7 +5,7 @@ plugins {
 
 // Version of the published Axeptio SDK to depend on. Overridable with
 // `-PaxeptioVersion=…`; the publish workflow pins it to each release.
-val axeptioVersion = providers.gradleProperty("axeptioVersion").getOrElse("1.1.0")
+val axeptioVersion = providers.gradleProperty("axeptioVersion").getOrElse("1.2.0")
 
 android {
     namespace = "io.axeptio.sample"
