@@ -8,7 +8,7 @@
     <string name="btn_open_consent_manager">Open Consent Manager</string>
     <string name="btn_open_permissions_screen">Open Permissions Screen</string>
     <string name="btn_show_consent_details">Show consent details</string>
-    <string name="consent_details">Remaining days: %1$s\nAxeptio token: %2$s\nBrands vendor consents: %3$s\nTCF TC string: %4$s\nTCF vendor consents: %5$s\nIABTCF_gdprApplies: %6$s</string>
+    <string name="consent_details">Callback thread: %1$s\nRemaining days: %2$s\nAxeptio token: %3$s\nBrands vendor consents: %4$s\nTCF TC string: %5$s\nTCF vendor consents: %6$s\nIABTCF_gdprApplies: %7$s\nGoogle Consent Mode: %8$s</string>
     <string name="btn_sdk_configuration">SDK Configuration</string>
     <string name="btn_sdk_clear_consents">Clear local consents</string>
     <string name="events_title">Events</string>

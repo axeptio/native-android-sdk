@@ -249,12 +249,14 @@ private fun SampleScreen(
             Text(
                 text = stringResource(
                     R.string.consent_details,
+                    it.callbackThread,
                     it.remainingDays,
                     it.axeptioToken,
                     it.brandsVendorConsents,
                     it.tcfTcString,
                     it.tcfVendorConsents,
                     it.iabTcfGdprApplies,
+                    it.googleConsentMode,
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.fillMaxWidth(),

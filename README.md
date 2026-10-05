@@ -19,7 +19,10 @@ The Axeptio SDK for Android — collect, manage and surface user consents native
   next launch.
 - **Consent state at hand** - query consent status, the TC string, and per-vendor consents at any
   time, or observe `consentStatusFlow` for changes.
+- **Google Consent Mode v2** - hands you the four consent signals to forward to Firebase Analytics,
+  without depending on Firebase itself.
 - **26 languages** built in.
+- **Java friendly** - static methods, a configuration builder and plain callbacks: see [Java](#java).
 
 ## Requirements
 
@@ -31,8 +34,7 @@ The Axeptio SDK for Android — collect, manage and surface user consents native
 The SDK declares the `android.permission.INTERNET` permission itself; Gradle merges it into your
 app's manifest automatically, so you don't need to add it.
 
-The public API is designed for **Kotlin**. Calling it from Java is not supported (it relies on
-`suspend` functions, `Flow`, `kotlin.Result` and a lambda-with-receiver builder).
+The public API is designed for **Kotlin** and has Java forms for every feature: see [Java](#java).
 
 ### Before you start
 
@@ -91,7 +93,7 @@ Then add the dependency to your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("io.axeptio:sdk:1.2.0")
+    implementation("io.axeptio:sdk:1.3.0")
 }
 ```
 
@@ -99,7 +101,7 @@ Or using Gradle Groovy DSL in `build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'io.axeptio:sdk:1.2.0'
+    implementation 'io.axeptio:sdk:1.3.0'
 }
 ```
 
@@ -321,7 +323,7 @@ category (see the [Android 16 behaviour changes](https://developer.android.com/a
 Control SDK log output (logcat tag `AxeptioSDK`) via `loggerLevel` at initialization:
 
 ```kotlin
-import io.axeptio.sdk.model.AxeptioLogLevel
+import io.axeptio.sdk.configuration.AxeptioLogLevel
 
 AxeptioSDK.initialize(this) {
     // ...
@@ -431,16 +433,15 @@ one.
 The SDK provides methods to query the current consent state and associated data. They can be
 called from any thread and deliver their result through a callback.
 
-> **Threading:** callbacks are invoked on a **background thread** (the SDK's `Dispatchers.IO`
-> scope), except when the SDK isn't initialized: the `SdkNotInitializedException` failure is then
-> delivered synchronously on the calling thread. Otherwise, switch to the main thread before
-> touching your UI, for example with `runOnUiThread { … }` or
-> `lifecycleScope.launch(Dispatchers.Main) { … }`. The [event listener](#sdk-events) is the
-> exception: it is always called on the main thread.
+> **Threading:** callbacks are invoked on the **main thread**, like the [event listener](#sdk-events)
+> and the iOS SDK's answers, so they can update your UI directly - keep them short. The query itself
+> runs in the background, and its callback is always posted to the main thread, never called from
+> inside the query call: also the `SdkNotInitializedException` failure when the SDK isn't
+> initialized.
 
 Every query but `getAxeptioToken()`, made right after `initialize()`, waits for the configuration
 (cached, else fetched). If `shutdown()` tears the SDK down before a query answers, its callback gets
-`Result.failure(SdkNotInitializedException(...))`, on a background thread - it is always called
+`Result.failure(SdkNotInitializedException(...))`, on the main thread too - it is always called
 back. While an open SDK screen keeps that SDK instance alive, the query answers from it instead,
 or fails the same way if that screen closes first.
 
@@ -474,6 +475,11 @@ AxeptioSDK.getTcfTcString { result ->
 AxeptioSDK.getTcfVendorConsents { result ->
     result.onSuccess { consents -> /* Map<String, Boolean> */ }
 }
+
+// The Google Consent Mode v2 signals of the stored consent, or null (see Google Consent Mode v2)
+AxeptioSDK.getGoogleConsentMode { result ->
+    result.onSuccess { consent -> /* GoogleConsentV2? */ }
+}
 ```
 
 ### Clearing consent data
@@ -489,8 +495,14 @@ lifecycleScope.launch {
 It removes the stored consent — including, on the Publisher flow, the `IABTCF_*` values (below) —
 and returns `true` on success, regardless of whether the configuration has finished loading yet.
 `consentStatusFlow` then emits `Ready(true)` immediately, so an active collector shows the consent
-flow again right away, and the [event listener](#sdk-events) gets `onConsentsUpdated()`. It throws
+flow again right away, and the [event listener](#sdk-events) gets `onConsentsUpdated()` - after
+`onGoogleConsentModeUpdate()` with the four signals denied, when the loaded configuration has
+[Google Consent Mode](#google-consent-mode-v2) on. It throws
 `SdkNotInitializedException` if the SDK is not initialized.
+
+Outside a coroutine (and from Java), pass an `AxeptioCallback<Boolean>` instead: it gets the same
+answer on the main thread, and `onFailure(SdkNotInitializedException)` rather than a throw (see
+[Java](#java)).
 
 #### Shutting down
 
@@ -537,6 +549,7 @@ class App : Application() {
 |---|---|
 | `onConsentFlowClosed()` | A screen opened by `showConsentFlow()`, `showConsentManager()` or `showPermissionsScreen()` went away: finished, dismissed with Back, or closed by the SDK. Once per screen, never for a rotation. |
 | `onConsentsUpdated()` | The consent stored on the device changed: a new choice was saved (Brands), its `IABTCF_*` keys were written (TCF), a previously unsynced choice was synced on a retry, or `clearConsentData()` cleared it. The query methods above already return the new values. |
+| `onGoogleConsentModeUpdate(GoogleConsentV2)` | The Google Consent Mode v2 signals of the consent changed, while the configuration has Consent Mode on: see [Google Consent Mode v2](#google-consent-mode-v2). |
 | `onError(AxeptioError)` | The SDK hit an error: a failed configuration load - the configuration fetch, else its vendor list (Brands vendors or TCF configuration), else the user token request; once per load, reported even when cached data keeps the SDK working (`consentStatusFlow` tells whether the consent flow can be shown); a consent choice that couldn't be synced to the backend; or an unexpected internal error. |
 
 `AxeptioError` cases: `InvalidAuthToken` (the backend rejected the token, HTTP 401),
@@ -567,7 +580,71 @@ come in minor releases, so give a `when` over them an `else` branch.
   remove an `Activity`-scoped one in `onDestroy()` so the SDK doesn't leak the activity.
 - **Failures:** anything a callback throws is logged and swallowed.
 - **Java:** implement `AxeptioEventListener` and override only what you need - the other methods
-  are default methods. Call `AxeptioSDK.INSTANCE.setEventListener(listener)`.
+  are default methods. Call `AxeptioSDK.setEventListener(listener)` (see [Java](#java)).
+
+### Google Consent Mode v2
+
+When your Axeptio configuration has Google Consent Mode on, the SDK reports the user's four Consent
+Mode v2 signals - `analytics_storage`, `ad_storage`, `ad_user_data` and `ad_personalization` - so you
+can forward them to Google Analytics for Firebase. The SDK doesn't depend on Firebase: you make the
+`setConsent` call.
+
+Consent Mode is on for a Brands configuration whose Consent Mode step is displayed, and for a TCF
+configuration that has a Consent Mode block. The signals:
+
+- **Brands:** the native consent screen has no Consent Mode step yet. "Accept all" grants the four
+  signals; "Refuse all" and saved choices deny them, even choices that accept every vendor.
+- **TCF:** derived from the purposes the user consented to, like Axeptio's web TCF CMP:
+  `ad_storage` on purpose 1, `ad_user_data` on purposes 1 and 7, `ad_personalization` on purposes 3
+  and 4, and `analytics_storage` on purposes 1, 2, 3, 4, 6 and 9 and special feature 1. Legitimate
+  interests grant nothing.
+
+**1. Default to denied** in your `AndroidManifest.xml`, inside `<application>`, so Firebase collects
+nothing before the user decides:
+
+```xml
+<meta-data android:name="google_analytics_default_allow_analytics_storage" android:value="false" />
+<meta-data android:name="google_analytics_default_allow_ad_storage" android:value="false" />
+<meta-data android:name="google_analytics_default_allow_ad_user_data" android:value="false" />
+<meta-data android:name="google_analytics_default_allow_ad_personalization_signals" android:value="false" />
+```
+
+**2. Forward each update** from your [event listener](#sdk-events). `GoogleConsentType` and
+`GoogleConsentStatus` use Firebase's enum names:
+
+```kotlin
+override fun onGoogleConsentModeUpdate(consent: GoogleConsentV2) {
+    Firebase.analytics.setConsent(
+        consent.toMap().entries.associate { (type, status) ->
+            FirebaseAnalytics.ConsentType.valueOf(type.name) to FirebaseAnalytics.ConsentStatus.valueOf(status.name)
+        }
+    )
+}
+```
+
+`onGoogleConsentModeUpdate()` is called on the main thread, only while the configuration has
+Consent Mode on:
+
+- for a new choice, just before its `onConsentsUpdated()` (TCF: once its `IABTCF_*` keys are
+  written);
+- once per `initialize()`, once the configuration is loaded: the valid stored consent's signals,
+  else the four denied - no consent yet, an expired one, one the SDK asks again for, or a Brands
+  consent saved by SDK 1.2.x, which has none. Firebase keeps what you set across launches, and this
+  keeps it in step with the stored consent, fail-closed;
+- with the four signals denied when `clearConsentData()` clears the consent - also when none was
+  stored: Firebase keeps the signals an earlier launch set, which the clear must withdraw.
+
+It is never called twice in a row with the same signals: a first refusal after a launch that denied
+them reports nothing new. It isn't replayed to a listener set later: read the current signals with
+`getGoogleConsentMode()`, which answers `null` when no valid consent holds signals and when Consent
+Mode is off.
+
+**TCF apps:** forward the signals too. With Consent Mode on, the SDK also sets
+`IABTCF_EnableAdvertiserConsentMode` to `1`, as the web TCF CMP does: as soon as the configuration
+is loaded, and removed again once a configuration has Consent Mode off. Google's
+Firebase documentation doesn't describe how the Analytics SDK reads a TC string; according to other
+CMPs' integration guides, that key lets Firebase infer the three `ad_*` signals from it, but never
+`analytics_storage`. Forwarding all four doesn't depend on either.
 
 ### IAB TCF storage (Publisher flow)
 
@@ -579,7 +656,8 @@ analytics SDKs that support TCF read them automatically:
 `IABTCF_PublisherCC`, `IABTCF_gdprApplies`, `IABTCF_PurposeOneTreatment`,
 `IABTCF_UseNonStandardTexts`, `IABTCF_VendorConsents`, `IABTCF_VendorLegitimateInterests`,
 `IABTCF_DisclosedVendors`, `IABTCF_PurposeConsents`, `IABTCF_PurposeLegitimateInterests`,
-`IABTCF_SpecialFeaturesOptIns`.
+`IABTCF_SpecialFeaturesOptIns`, and `IABTCF_EnableAdvertiserConsentMode` (`1`) when the
+configuration has Google Consent Mode on.
 
 When the configuration selects purposes or stacks, the consent screens list purpose 1, those
 purposes and the selected stacks' purposes besides the vendors' own, even when no vendor declares
@@ -591,22 +669,34 @@ consented, every purpose but 1 and 3-6 (consent only) is under legitimate intere
 special feature is opted in, in the TC string and the `IABTCF_*` keys. Saving custom choices is
 narrower: a purpose no vendor declares has no toggle in the details, as on iOS, so it stays refused.
 
+## Upgrading from 1.2.x
+
+1.3.0 cleans up the public API before its first customers:
+
+- **Query callbacks on the main thread.** `getRemainingDaysForConsent()`, `getAxeptioToken()`,
+  `getBrandsVendorConsents()`, `getTcfTcString()` and `getTcfVendorConsents()` now call back on the
+  main thread (they used `Dispatchers.IO`), also when they fail because the SDK isn't initialized
+  (that failure was delivered synchronously). Drop any switch to the main thread you added around
+  them, and move blocking work out of the callbacks.
+- **`AxeptioLogLevel` import.** It moved next to the other configuration types: replace
+  `import io.axeptio.sdk.model.AxeptioLogLevel` with
+  `import io.axeptio.sdk.configuration.AxeptioLogLevel`.
+- **No foundation types.** The SDK no longer exposes `io.axeptio.foundation.*` types to your code:
+  the `withPermissions()` overload taking `io.axeptio.foundation.core.config.AxeptioPermission` is
+  gone (import `io.axeptio.sdk.configuration.AxeptioPermission` instead), and so are the
+  deprecated foundation Koin module properties (`hostModule`, `dataConfigurationModule`, …).
+- **Java callers.** `AxeptioConfigBuilder`'s permission accessors are plain `getPermissions()`,
+  `setPermissions()` and `withPermissions()` again (they were `getSdkPermissions()`,
+  `setSdkPermissions()` and `withSdkPermissions()`).
+
 ## Upgrading from 1.0.1
 
-A few things changed since 1.0.1:
+Besides the [1.2.x changes](#upgrading-from-12x) above, a few things changed since 1.0.1:
 
-- **`AxeptioPermission` import.** Already importing it from `io.axeptio.sdk.configuration`?
-  Nothing to do. Otherwise replace `import io.axeptio.foundation.core.config.AxeptioPermission`
-  with `import io.axeptio.sdk.configuration.AxeptioPermission`. The old import still compiles, but
-  `withPermissions()` then shows a deprecation warning, and that overload may be removed in a
-  future major release. Three cases stop compiling until you switch:
-  - `permissions = listOf(...)` assigned directly: switch to the new import.
-  - An untyped empty list, `withPermissions(emptyList())` or `withPermissions(listOf())`: add the
-    type, e.g. `withPermissions(emptyList<AxeptioPermission>())`, or remove the call (no
-    permissions is the default).
-  - Reading `permissionType` or `androidPermission` on a permission: use `manifestPermissions`
-    instead, which lists the covered `android.permission.*` strings (`allManifestPermissions` is
-    still available too).
+- **`AxeptioPermission` import.** Replace `import io.axeptio.foundation.core.config.AxeptioPermission`
+  with `import io.axeptio.sdk.configuration.AxeptioPermission`. Reading `permissionType` or
+  `androidPermission` on a permission: use `manifestPermissions` instead, which lists the covered
+  `android.permission.*` strings (`allManifestPermissions` is still available too).
 - **INTERNET permission.** The SDK now declares `android.permission.INTERNET` itself. You can
   remove it from your own manifest if you only added it for the SDK — keeping it is harmless.
 - **R8 / ProGuard rules.** Consumer rules now ship inside the AAR. Remove any `-keep io.axeptio`
@@ -620,8 +710,8 @@ A few things changed since 1.0.1:
 Calling `initialize()` more than once throws `SdkAlreadyInitializedException` — call `shutdown()`
 first to re-initialize. Calling a query method or a `show*` method before `initialize()` (or after
 `shutdown()`) throws `SdkNotInitializedException` for suspend functions and `show*` methods, or
-delivers `Result.failure(SdkNotInitializedException(...))` for callback-based functions - it's never
-silently swallowed.
+delivers `Result.failure(SdkNotInitializedException(...))` (from Java, to `onFailure`) for
+callback-based functions - it's never silently swallowed.
 
 ```kotlin
 import io.axeptio.sdk.model.SdkNotInitializedException
@@ -651,6 +741,80 @@ once and then the flow **completes**, so collect it again (for example, the next
 `repeatOnLifecycle` start) rather than treating that emission as the SDK being uninitialized. The
 error is also reported to the event listener as `AxeptioError.Internal`, once per collection that
 hit it. (The iOS stream never finishes on its own.)
+
+## Java
+
+The SDK works from Java too. Every `AxeptioSDK` method is static, the consent queries take an
+`AxeptioCallback<T>` (`onSuccess(T)`, `onFailure(Throwable)`), and the Kotlin-only forms - the
+configuration lambda, the `Result` callbacks and the `suspend` `clearConsentData()` - aren't visible
+from Java.
+
+```java
+import android.app.Application;
+import io.axeptio.sdk.AxeptioSDK;
+import io.axeptio.sdk.configuration.AxeptioConfigBuilder;
+import io.axeptio.sdk.configuration.AxeptioPermission;
+import io.axeptio.sdk.configuration.AxeptioService;
+import java.util.Arrays;
+
+public class MyApplication extends Application {
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        AxeptioConfigBuilder config = new AxeptioConfigBuilder();
+        config.setProjectId("your-project-id");
+        config.setAppVersion("1.0.0");
+        config.setToken("your-api-token");
+        config.setTargetService(AxeptioService.Brands);
+        config.setPermissions(Arrays.asList(
+            new AxeptioPermission.Camera(),
+            new AxeptioPermission.LocationFine("Precise location")));
+        AxeptioSDK.initialize(this, config);
+    }
+}
+```
+
+Observe the consent status with `observeConsentStatus()`, which follows `consentStatusFlow` while
+the `LifecycleOwner` is started, on the main thread - like `LiveData.observe()`:
+
+```java
+import android.os.Bundle;
+import androidx.activity.ComponentActivity;
+import io.axeptio.sdk.AxeptioSDK;
+import io.axeptio.sdk.model.ConsentStatus;
+
+public class MainActivity extends ComponentActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        AxeptioSDK.observeConsentStatus(this, status -> {
+            if (status instanceof ConsentStatus.Ready
+                    && ((ConsentStatus.Ready) status).getShouldDisplayConsents()) {
+                AxeptioSDK.showConsentFlow(this);
+            }
+        });
+    }
+}
+```
+
+(`FlowLiveDataConversions.asLiveData(AxeptioSDK.getConsentStatusFlow())`, from
+`androidx.lifecycle:lifecycle-livedata-ktx`, gives you a `LiveData` instead.) The singletons -
+`ConsentStatus.NotInitialized`, `ConsentStatus.ConfigFetchFailed`, `AxeptioError.InvalidAuthToken`… -
+are `.INSTANCE`.
+
+Queries and `clearConsentData()` answer on the main thread, through an `AxeptioCallback`:
+
+```java
+import io.axeptio.sdk.AxeptioCallback;
+
+AxeptioSDK.getTcfTcString(new AxeptioCallback<String>() {
+    @Override public void onSuccess(String tcString) { /* null until a TCF consent is stored */ }
+    @Override public void onFailure(Throwable error) { /* SdkNotInitializedException */ }
+});
+
+AxeptioSDK.getRemainingDaysForConsent(new AxeptioCallback<Integer>() { /* … */ });
+AxeptioSDK.clearConsentData(new AxeptioCallback<Boolean>() { /* … */ });
+```
 
 ## Localization
 
@@ -701,21 +865,19 @@ are separate products with different artifacts and APIs; do not include both.
 | `token` (transfers an existing consent)                | Not supported. `token` is now your project's API token           |
 | `AxeptioService.PUBLISHERS_TCF` / `BRANDS`             | `AxeptioService.Publisher` / `AxeptioService.Brands`             |
 | `showConsentScreen(activity)`                          | `showConsentFlow(activity)` / `showConsentManager(activity)`     |
-| `setEventListener` (`onPopupClosedEvent`, `onConsentSaved`, …) | Collect `consentStatusFlow`                               |
+| `setEventListener` (`onPopupClosedEvent`, `onConsentSaved`, …) | `AxeptioSDK.setEventListener(AxeptioEventListener)` (`onConsentFlowClosed`, `onConsentsUpdated`, …), or collect `consentStatusFlow` |
 | `clearConsents()`                                      | `clearConsentData()`                                             |
 | `getRemainingDaysForConsent()`                         | `getRemainingDaysForConsent(ttlDays) { … }`                      |
 | `getVendorConsents()` / `isVendorConsented(id)`        | `getTcfVendorConsents { … }` (keyed by IAB vendor id) / `getBrandsVendorConsents { … }` (keyed by display name) |
 | `token` / `appendAxeptioToken(uri)` for WebViews       | `getAxeptioToken { … }` (no URL helper)                          |
-| `onGoogleConsentModeUpdate`                            | Not supported yet                                                |
+| `onGoogleConsentModeUpdate(Map<GoogleConsentType, GoogleConsentStatus>)` | `onGoogleConsentModeUpdate(GoogleConsentV2)` - `consent.toMap()` gives the same map. Firebase isn't called for you: see [Google Consent Mode v2](#google-consent-mode-v2) |
 
 ### Not supported yet
 
-* Google Consent Mode v2 updates
 * IAB GPP strings
 * A consent-change listener with the user's choices (observe `consentStatusFlow` instead)
 * Sharing consent with WebViews through a URL helper
 * Customizing the SDK's theme from code (the look comes from your Axeptio configuration)
-* Java callers
 
 ## Example App
 

@@ -4,6 +4,8 @@ import android.util.Log
 import io.axeptio.sdk.AxeptioEventListener
 import io.axeptio.sdk.model.AxeptioError
 import io.axeptio.sdk.model.ConsentStatus
+import io.axeptio.sdk.model.GoogleConsentStatus
+import io.axeptio.sdk.model.GoogleConsentV2
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -32,6 +34,23 @@ object SampleEventLogger : AxeptioEventListener {
         Log.d(TAG, "Event: consents updated")
         log.add("Consents updated")
     }
+
+    /**
+     * An app using Firebase forwards [consent] here: `Firebase.analytics.setConsent(...)` (see the
+     * README). The sample has no Firebase: it records the signals, G for granted, D for denied.
+     */
+    override fun onGoogleConsentModeUpdate(consent: GoogleConsentV2) {
+        val signals = describe(consent)
+        Log.d(TAG, "Event: google consent $signals")
+        log.add("Google consent: $signals")
+    }
+
+    /** `analytics=G ad_storage=D ad_user_data=D ad_personalization=D`: stable, for the tests. */
+    fun describe(consent: GoogleConsentV2): String =
+        "analytics=${consent.analyticsStorage.letter()} ad_storage=${consent.adStorage.letter()} " +
+            "ad_user_data=${consent.adUserData.letter()} ad_personalization=${consent.adPersonalization.letter()}"
+
+    private fun GoogleConsentStatus.letter() = if (this == GoogleConsentStatus.GRANTED) "G" else "D"
 
     override fun onError(error: AxeptioError) {
         Log.w(TAG, "Event: error $error - ${error.message}")

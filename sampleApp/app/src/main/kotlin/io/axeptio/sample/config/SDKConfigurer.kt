@@ -4,8 +4,8 @@ import android.content.Context
 import android.util.Log
 import io.axeptio.sample.R
 import io.axeptio.sdk.AxeptioSDK
+import io.axeptio.sdk.configuration.AxeptioLogLevel
 import io.axeptio.sdk.configuration.AxeptioPermission
-import io.axeptio.sdk.model.AxeptioLogLevel
 
 object SDKConfigurer {
 
