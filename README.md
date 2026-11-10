@@ -93,7 +93,7 @@ Then add the dependency to your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("io.axeptio:sdk:1.3.0")
+    implementation("io.axeptio:sdk:1.4.0")
 }
 ```
 
@@ -101,7 +101,7 @@ Or using Gradle Groovy DSL in `build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'io.axeptio:sdk:1.3.0'
+    implementation 'io.axeptio:sdk:1.4.0'
 }
 ```
 
@@ -592,8 +592,14 @@ can forward them to Google Analytics for Firebase. The SDK doesn't depend on Fir
 Consent Mode is on for a Brands configuration whose Consent Mode step is displayed, and for a TCF
 configuration that has a Consent Mode block. The signals:
 
-- **Brands:** the native consent screen has no Consent Mode step yet. "Accept all" grants the four
-  signals; "Refuse all" and saved choices deny them, even choices that accept every vendor.
+- **Brands:** the consent screens show the configuration's Consent Mode step, as the web CMP does: a
+  "Data Sharing with Google" card on the purposes screen and, in "Let me choose", a section with one
+  switch per signal and a "?" link to Google's policy, both first or last as the back office places
+  them. "Accept all" grants the four signals, "Refuse all" denies them, and saved choices send each
+  switch's signal. The step's texts come from the Axeptio API: while a configuration has none, the
+  step isn't shown, "Accept all" grants the four signals and any other choice denies them, and the
+  SDK logs a warning. A consent saved without the step - by SDK 1.3.0 or earlier, or while its texts
+  were missing - is asked again once the step can be shown; its signals hold until the user answers.
 - **TCF:** derived from the purposes the user consented to, like Axeptio's web TCF CMP:
   `ad_storage` on purpose 1, `ad_user_data` on purposes 1 and 7, `ad_personalization` on purposes 3
   and 4, and `analytics_storage` on purposes 1, 2, 3, 4, 6 and 9 and special feature 1. Legitimate
@@ -628,8 +634,9 @@ Consent Mode on:
 - for a new choice, just before its `onConsentsUpdated()` (TCF: once its `IABTCF_*` keys are
   written);
 - once per `initialize()`, once the configuration is loaded: the valid stored consent's signals,
-  else the four denied - no consent yet, an expired one, one the SDK asks again for, or a Brands
-  consent saved by SDK 1.2.x, which has none. Firebase keeps what you set across launches, and this
+  else the four denied - no consent yet, an expired one, one that the SDK asks again for, or a
+  Brands consent saved by SDK 1.2.x, which has none. A Brands consent that the Consent Mode step
+  asks again for keeps its signals until the user answers. Firebase keeps what you set across launches, and this
   keeps it in step with the stored consent, fail-closed;
 - with the four signals denied when `clearConsentData()` clears the consent - also when none was
   stored: Firebase keeps the signals an earlier launch set, which the clear must withdraw.
