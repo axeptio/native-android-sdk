@@ -93,7 +93,7 @@ Then add the dependency to your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("io.axeptio:sdk:1.4.0")
+    implementation("io.axeptio:sdk:1.4.1")
 }
 ```
 
@@ -101,7 +101,7 @@ Or using Gradle Groovy DSL in `build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'io.axeptio:sdk:1.4.0'
+    implementation 'io.axeptio:sdk:1.4.1'
 }
 ```
 

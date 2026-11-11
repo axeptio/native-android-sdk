@@ -1,0 +1,195 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.axeptio",
+    "module": "foundation-data-analytics",
+    "version": "1.4.1",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.4.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "foundation-data-analytics-1.4.1.aar",
+          "url": "foundation-data-analytics-1.4.1.aar",
+          "size": 156430,
+          "sha512": "610879a645696bed165d4140bac8b85da71cb5e2b9fcae865c6faa8eb62133b3653f96884f4c9b890c3dfcc8d23f5f44a22bfb3817e43116267ad2a30b72a3ff",
+          "sha256": "23ea1556f4c3cd7aec53811a4239b36b5a284b4828184e60705309bff7c79527",
+          "sha1": "130206cd3e90a88eb937158cc91a2babb966452c",
+          "md5": "e9bffe52753fc4d9c5220e1e7bb270a0"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.10.2"
+          }
+        },
+        {
+          "group": "co.touchlab",
+          "module": "kermit",
+          "version": {
+            "requires": "2.1.0"
+          }
+        },
+        {
+          "group": "io.insert-koin",
+          "module": "koin-core",
+          "version": {
+            "requires": "4.2.1"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-core",
+          "version": {
+            "requires": "1.11.0"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-core",
+          "version": {
+            "requires": "3.4.2"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-okhttp",
+          "version": {
+            "requires": "3.4.2"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-content-negotiation",
+          "version": {
+            "requires": "3.4.2"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-logging",
+          "version": {
+            "requires": "3.4.2"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-serialization-kotlinx-json",
+          "version": {
+            "requires": "3.4.2"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-network",
+          "version": {
+            "requires": "1.4.1"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-config",
+          "version": {
+            "requires": "1.4.1"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-utils",
+          "version": {
+            "requires": "1.4.1"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-data-configuration",
+          "version": {
+            "requires": "1.4.1"
+          }
+        },
+        {
+          "group": "io.axeptio",
+          "module": "foundation-core-datastore",
+          "version": {
+            "requires": "1.4.1"
+          }
+        },
+        {
+          "group": "androidx.datastore",
+          "module": "datastore-core",
+          "version": {
+            "requires": "1.2.1"
+          }
+        },
+        {
+          "group": "androidx.lifecycle",
+          "module": "lifecycle-process",
+          "version": {
+            "requires": "2.10.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "foundation-data-analytics-1.4.1.aar",
+          "url": "foundation-data-analytics-1.4.1.aar",
+          "size": 156430,
+          "sha512": "610879a645696bed165d4140bac8b85da71cb5e2b9fcae865c6faa8eb62133b3653f96884f4c9b890c3dfcc8d23f5f44a22bfb3817e43116267ad2a30b72a3ff",
+          "sha256": "23ea1556f4c3cd7aec53811a4239b36b5a284b4828184e60705309bff7c79527",
+          "sha1": "130206cd3e90a88eb937158cc91a2babb966452c",
+          "md5": "e9bffe52753fc4d9c5220e1e7bb270a0"
+        }
+      ]
+    }
+  ]
+}
